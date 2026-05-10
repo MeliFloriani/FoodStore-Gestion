@@ -146,4 +146,4 @@
 - [x] 14.8 Verificar `GET http://localhost:8000/docs` → Swagger UI disponible (HTTP 200)
 - [x] 14.9 Verificar `GET http://localhost:8000/redoc` → ReDoc disponible (HTTP 200)
 - [x] 14.10 Apagar `uvicorn` con Ctrl+C → log de shutdown sin warnings de conexiones colgadas (validación visual del lifespan + engine dispose, paso 12.1)
-- [ ] 14.11 Commit con mensaje convencional: `feat(backend): core foundation — config, db async lazy, error handling RFC 7807, middlewares, lifespan`
+- [x] 14.11 Commit con mensaje convencional: `feat(backend): core foundation — config, db async lazy, error handling RFC 7807, middlewares, lifespan`

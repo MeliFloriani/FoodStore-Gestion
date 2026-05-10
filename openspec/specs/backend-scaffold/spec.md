@@ -14,16 +14,17 @@ El workspace `backend/` SHALL contener la estructura de carpetas de capas defini
 - **THEN** existe el directorio `tests/` con `conftest.py` y `__init__.py`
 
 ### Requirement: Dependencias Python declaradas en pyproject.toml
-El workspace backend SHALL declarar todas las dependencias core en `pyproject.toml` (sección `[project.dependencies]`) y las dependencias de desarrollo en `[project.optional-dependencies.dev]`. SHALL existir también un `requirements.txt` generado con versiones pinneadas.
+El workspace backend SHALL declarar todas las dependencias core en `pyproject.toml` (sección `[project.dependencies]`) y las dependencias de desarrollo en `[project.optional-dependencies.dev]`.
 
-#### Scenario: pyproject.toml contiene dependencias core
+#### Scenario: pyproject.toml contiene dependencias core de Change 02
 - **WHEN** se lee `backend/pyproject.toml`
-- **THEN** la sección `[project.dependencies]` incluye: `fastapi`, `uvicorn[standard]`, `sqlmodel`, `alembic`, `pydantic[email]`, `passlib[bcrypt]`, `python-jose[cryptography]`, `slowapi`, `python-dotenv`, `asyncpg`
-- **THEN** la sección `[project.optional-dependencies.dev]` incluye: `pytest`, `pytest-asyncio`, `httpx`, `ruff`, `black`, `mypy`
+- **THEN** la sección `[project.dependencies]` incluye: `fastapi`, `uvicorn[standard]`, `python-dotenv`, `sqlmodel`, `asyncpg`, `alembic`, `pydantic-settings`, `slowapi`, `structlog`
+- **THEN** la sección `[project.optional-dependencies.dev]` incluye: `pytest`, `pytest-asyncio`, `httpx`, `ruff`, `mypy`, `pytest-cov`, `anyio[trio]`
 
-#### Scenario: requirements.txt existe como fallback
-- **WHEN** se lee `backend/requirements.txt`
-- **THEN** contiene versiones pinneadas de todas las dependencias declaradas en pyproject.toml
+#### Scenario: pip install -e instala todas las dependencias
+- **WHEN** se ejecuta `pip install -e ".[dev]"` desde `backend/`
+- **THEN** el proceso termina con exit code 0
+- **THEN** `import sqlmodel`, `import asyncpg`, `import structlog`, `import slowapi` no generan `ModuleNotFoundError`
 
 ### Requirement: Linting y formateo backend configurado y operativo
 El workspace backend SHALL tener `ruff` y `mypy` configurados en `pyproject.toml` con reglas mínimas. El script `lint` SHALL ejecutar ambas herramientas sin errores en el código del bootstrap.
