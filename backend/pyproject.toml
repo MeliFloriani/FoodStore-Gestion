@@ -8,6 +8,12 @@ dependencies = [
     "fastapi",
     "uvicorn[standard]",
     "python-dotenv",
+    "sqlmodel",
+    "asyncpg",
+    "alembic",
+    "pydantic-settings",
+    "slowapi",
+    "structlog",
 ]
 
 [project.optional-dependencies]
@@ -17,6 +23,8 @@ dev = [
     "httpx",
     "ruff",
     "mypy",
+    "pytest-cov",
+    "anyio",
 ]
 
 # ---------------------------------------------------------------------------
