@@ -239,3 +239,46 @@ backend-core-foundation       ← Change 02
 frontend-core-foundation      ← Change 05
 ...
 ```
+
+---
+
+## Branch didáctico — `clase-demo`
+
+El branch [`clase-demo`](../../tree/clase-demo) tiene el flujo completo de la clase ensayado paso a paso, con **9 tags** que marcan el estado del repositorio en cada hito del proceso SDD. Sirve como referencia para revisar cómo queda el repo después de cada paso.
+
+```bash
+git fetch --tags
+git checkout clase-demo
+```
+
+| Tag | Estado del repo |
+|-----|-----------------|
+| `step-0-clean` | Repo recién clonado |
+| `step-2-skills-installed` | Después de instalar las skills (las skills viven en `~/.agents/skills/`, no en el repo) |
+| `step-3-kb-generated` | Base de conocimiento generada en `knowledge-base/` (10 archivos canónicos + README) |
+| `step-4-openspec-init` | OpenSpec inicializado: `openspec/`, `.opencode/`, `.claude/` |
+| `step-5-agents-configured` | `AGENTS.md` y `openspec/config.yaml` con context y rules del proyecto |
+| `step-6-roadmap-done` | `openspec/roadmap.md` con los 10 changes y sus dependencias |
+| `step-7a-proposed` | `us-000-setup` propuesto: proposal + design + 4 specs + tasks |
+| `step-7b-applied` | `us-000-setup` implementado: backend FastAPI + frontend Vite + tests |
+| `step-7c-archived` | `us-000-setup` archivado: specs sincronizados, change cerrado |
+
+Para saltar a un estado específico:
+
+```bash
+git checkout step-3-kb-generated     # ver cómo queda con la KB completa
+git checkout step-7c-archived        # ver el repo después del primer change
+git checkout clase-demo              # volver al estado final
+```
+
+### Skills usadas en la clase
+
+- **kb-creator** — genera la base de conocimiento en `knowledge-base/`. Repo: [JuanCruzRobledo/kb-creator](https://github.com/JuanCruzRobledo/kb-creator).
+- **roadmap-generator** — genera `openspec/roadmap.md` desde la KB. Repo: [JuanCruzRobledo/roadmap-generator](https://github.com/JuanCruzRobledo/roadmap-generator).
+
+Instalación:
+
+```bash
+npx skills add https://github.com/JuanCruzRobledo/kb-creator
+npx skills add https://github.com/JuanCruzRobledo/roadmap-generator
+```
