@@ -14,7 +14,7 @@ import json
 from functools import lru_cache
 from typing import Any
 
-from pydantic import field_validator
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -32,9 +32,13 @@ class Settings(BaseSettings):
 
     # --- Required ---
     DATABASE_URL: str  # No default — must be set in environment
+    SECRET_KEY: SecretStr  # No default — must be set in environment (JWT signing key)
 
     # --- Optional with sensible defaults ---
     ENVIRONMENT: str = "development"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     # Declared as str so pydantic-settings won't pre-parse as JSON;
     # assemble_cors_origins converts it to list[str].
     BACKEND_CORS_ORIGINS: str | list[str] = ["http://localhost:5173"]
