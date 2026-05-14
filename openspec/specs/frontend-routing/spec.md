@@ -2,9 +2,7 @@
 
 ## Purpose
 Define the client-side routing architecture for the Food Store frontend using react-router-dom v6+ `createBrowserRouter`. This includes three layout tiers (RootLayout, AuthLayout, AppLayout), a `ProtectedRoute` guard and a `RoleGuard` stub based on `authStore.status` (never raw token), an `AuthSync` component for safe post-rehydration user reconstruction via `GET /auth/me`, and lazy-loaded placeholder routes for all top-level paths. The routing layer is the single place where auth-state transitions (rehydration loading, redirect to login, redirect home) are enforced consistently.
-
 ## Requirements
-
 ### Requirement: createBrowserRouter with lazy-loaded routes
 `src/app/router/routes.tsx` SHALL configure the application router using `createBrowserRouter` from react-router-dom v6+. Each page route SHALL use `lazy` (React.lazy / route-level `lazy` function) so that page bundles are code-split by default.
 
@@ -22,10 +20,12 @@ Define the client-side routing architecture for the Food Store frontend using re
 The router SHALL define three nested layout routes:
 
 - `RootLayout` (`src/app/layouts/RootLayout.tsx`): outermost shell, wraps all routes. Listens for `auth:expired` DOM event and navigates to `/login`. Renders `<Outlet />`.
-- `AuthLayout` (`src/app/layouts/AuthLayout.tsx`): wraps public-only routes (`/login`, `/register`). SHALL check `authStore.status` (NOT `accessToken`): if `status === 'idle'`, render a full-screen loading state (not a redirect); if `status === 'authenticated'`, redirect to `/`; if `status === 'unauthenticated'`, render the auth content (login/register).
+- `AuthLayout` (`src/app/layouts/AuthLayout.tsx`): wraps public-only routes (`/login`, `/register`). SHALL check `authStore.status` (NOT `accessToken`): if `status === 'idle'` **OR** `status === 'authenticating'` (NEW — inflight login/register), render a full-screen spinner/loading state (not a redirect); if `status === 'authenticated'`, redirect to `/`; if `status === 'unauthenticated'`, render the auth content (login/register).
 - `AppLayout` (`src/app/layouts/AppLayout.tsx`): wraps protected routes. Includes a structural navigation placeholder (no business UI). Renders `<Outlet />`.
 
-> **Note**: The `status: 'idle'` state represents the window between localStorage rehydration (synchronous) and the `GET /auth/me` call completing (asynchronous). Both `AuthLayout` and `ProtectedRoute` MUST handle this state explicitly to prevent flash of incorrect UI.
+**MODIFIED behavior**: `AuthLayout` previously showed the spinner guard only for `status === 'idle'`. It now also covers `status === 'authenticating'` so that login and register form submissions do not flash the auth page content while the server round-trip is in progress.
+
+> **Constraint — no flash of auth UI during inflight requests**: The `status: 'authenticating'` state is set by `authStore` when a login or register request is in flight. `AuthLayout` MUST render the loading state during this window to prevent the auth form from being re-rendered mid-submission.
 
 #### Scenario: AuthLayout redirects authenticated user
 - **WHEN** a user with `status: 'authenticated'` navigates to `/login`
@@ -35,6 +35,11 @@ The router SHALL define three nested layout routes:
 - **WHEN** a user navigates to `/login` with `status: 'idle'` (rehydration in progress)
 - **THEN** a full-screen loading state is shown (no redirect)
 
+#### Scenario: AuthLayout shows loading on authenticating status
+- **WHEN** `authStore.status` is `'authenticating'` (login or register in flight) and the user is on `/login` or `/register`
+- **THEN** a full-screen loading state (spinner) is shown instead of the auth form
+- **THEN** no redirect occurs
+
 #### Scenario: AuthLayout renders login page when unauthenticated
 - **WHEN** a user navigates to `/login` with `status: 'unauthenticated'`
 - **THEN** the login page is rendered
@@ -42,8 +47,6 @@ The router SHALL define three nested layout routes:
 #### Scenario: RootLayout listens for auth:expired
 - **WHEN** the `auth:expired` custom event is dispatched on `window`
 - **THEN** the user is navigated to `/login`
-
----
 
 ### Requirement: ProtectedRoute guard
 `src/app/router/guards/ProtectedRoute.tsx` SHALL be a React component that reads `status` from `authStore` (NOT `accessToken`). Guard logic: if `status === 'idle'`, render a full-screen loading state (not a redirect to login); if `status === 'authenticated'`, render `<Outlet />`; if `status === 'unauthenticated'`, render `<Navigate to="/login" replace />`.
@@ -110,3 +113,4 @@ Route tree:
 #### Scenario: All placeholder routes render without crashing
 - **WHEN** any registered route is navigated to (with auth state set appropriately for guards)
 - **THEN** the page renders without a runtime error or uncaught exception
+

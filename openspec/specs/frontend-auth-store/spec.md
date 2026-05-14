@@ -2,9 +2,7 @@
 
 ## Purpose
 Define the Zustand authentication store for the Food Store frontend: the canonical `authStore` with typed state (accessToken, refreshToken, user, status), atomic `login`/`logout`/`updateTokens` actions, `localStorage` persistence of tokens only (never user object, never status), and a safe rehydration pattern that sets `status: 'authenticating'` as a signal for the `app/` layer to call `GET /auth/me` — keeping the FSD import direction intact. This store is the single source of truth for all authentication state consumed across the application.
-
 ## Requirements
-
 ### Requirement: authStore state shape and actions
 `src/entities/auth/model/store.ts` SHALL export a Zustand store (`authStore`) with the following state and actions:
 
@@ -106,9 +104,24 @@ Storage key: `food-store-auth`
 
 ### Requirement: User and AuthStatus types defined
 `src/entities/auth/types.ts` SHALL export:
-- `User` type with at minimum: `id: number`, `nombre: string`, `email: string`, `roles: string[]`
+- `User` type with: `id: string` (UUID serialized as string — **BREAKING**: changed from `number`), `nombre: string`, `apellido: string` (NEW field), `email: string`, `roles: string[]`
 - `AuthStatus` type: `'idle' | 'authenticating' | 'authenticated' | 'unauthenticated'`
 
-#### Scenario: User type matches LoginResponse schema
-- **WHEN** the backend LoginResponse schema's `user` field is deserialized
-- **THEN** it is assignable to the `User` type without type errors
+The `id` field type change from `number` to `string` is a breaking change. All consumers of `User.id` MUST be updated to treat it as a string (UUID format).
+
+The `apellido` field is newly required — any code constructing a `User` literal must supply it.
+
+#### Scenario: User type matches backend UserRead schema
+- **WHEN** the backend `POST /api/v1/auth/register` or `POST /api/v1/auth/login` response's user field is deserialized
+- **THEN** it is assignable to the `User` type without TypeScript errors
+- **THEN** `user.id` is a `string` (e.g. `"3fa85f64-5717-4562-b3fc-2c963f66afa6"`)
+- **THEN** `user.apellido` is a non-empty `string`
+
+#### Scenario: TypeScript strict mode rejects number-typed id
+- **WHEN** code assigns `user.id = 42` (a number literal)
+- **THEN** the TypeScript compiler emits a type error
+
+#### Scenario: hasRole works unchanged with updated User type
+- **WHEN** `hasRole('CLIENT')` is called with `user.roles = ['CLIENT']` (string array unchanged)
+- **THEN** it returns `true` — the type change does not break this selector
+

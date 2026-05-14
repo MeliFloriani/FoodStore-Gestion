@@ -2,9 +2,7 @@
 
 ## Purpose
 FastAPI dependency functions for identity resolution and role-based access control. Introduced in Change 04 (`backend-base-patterns`). Provides `get_current_user` (401 paths) and `require_role` (403 paths), backed by JWT decode helpers in `core/security.py`. Token issuance is deferred to Change 09.
-
 ## Requirements
-
 ### Requirement: `oauth2_scheme` placeholder
 `backend/app/api/deps.py` SHALL define `oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)`. The `auto_error=False` setting prevents the scheme from raising 401 automatically — only `get_current_user` raises 401 when needed, giving the application control over error formatting (RFC 7807).
 
@@ -110,11 +108,13 @@ The `get_uow` callable SHALL NOT be wrapped, aliased, or curried in any module t
 
 ### Requirement: `core/security.py` — JWT decode helper
 `backend/app/core/security.py` SHALL define `decode_access_token(token: str) -> dict` using `python-jose[cryptography]`. It SHALL:
-1. Call `jwt.decode(token, settings.SECRET_KEY.get_secret_value(), algorithms=[settings.JWT_ALGORITHM])` with explicit `options` dict: `verify_signature=True`, `verify_exp=True`, `verify_nbf=True`, `verify_iat=True`, `verify_aud=False`, `verify_iss=False` (audience and issuer policies deferred to Change 09)
-2. On `JWTError` (including `ExpiredSignatureError`): raise `UnauthorizedError("Token inválido o expirado", code="invalid_token")`
-3. Return the decoded payload dict on success
+1. Call `jwt.decode(token, settings.SECRET_KEY.get_secret_value(), algorithms=[settings.JWT_ALGORITHM])` with explicit `options` dict: `verify_signature=True`, `verify_exp=True`, `verify_nbf=True`, `verify_iat=True`, `verify_aud=False`, `verify_iss=False` (audience and issuer policies deferred).
+2. On `JWTError` (including `ExpiredSignatureError`): raise `UnauthorizedError("Token inválido o expirado", code="invalid_token")`.
+3. Return the decoded payload dict on success.
 
-This module SHALL NOT contain token issuance functions (`create_access_token`, `create_refresh_token`) — those are deferred to Change 09.
+**Supersession of D-07**: This requirement now co-exists with token issuance functions in the same module. The restriction from Change 04 — "This module SHALL NOT contain token issuance functions" — is LIFTED by change `auth-register-login`. `backend/app/core/security.py` now also exports `hash_password`, `verify_password`, `create_access_token`, and `create_refresh_token` (see capability `backend-auth-token-issuance`). The import of `passlib[bcrypt]` and `hashlib` in `security.py` is valid and expected.
+
+The `decode_access_token` implementation itself is UNCHANGED from Change 04.
 
 #### Scenario: Valid token decodes to payload dict
 - **WHEN** `decode_access_token(valid_jwt)` is called with a JWT signed with the correct `SECRET_KEY` and not expired
@@ -134,21 +134,14 @@ This module SHALL NOT contain token issuance functions (`create_access_token`, `
 - **WHEN** `decode_access_token` is called with a token whose `nbf` is in the future
 - **THEN** it raises `UnauthorizedError` (not a raw `JWTError`) and the deps layer maps it to HTTP 401
 
-#### Scenario: Invalid signature raises InvalidTokenError (not a subclass)
-- **WHEN** `decode_access_token` is called with a token whose signature is invalid
-- **THEN** it raises `UnauthorizedError` with `code="invalid_token"` — NOT a different error class — to prevent leaking the failure cause to clients via RFC 7807 detail
-
 #### Scenario: options dict is passed explicitly with all verification flags
 - **WHEN** `decode_access_token` is called
 - **THEN** `options={"verify_signature": True, "verify_exp": True, "verify_nbf": True, "verify_iat": True, "verify_aud": False, "verify_iss": False}` is passed explicitly to `jwt.decode`
-- **THEN** `verify_aud` and `verify_iss` are False (deferred to Change 09)
 
-#### Scenario: security.py does not contain issuance functions
+#### Scenario: security.py now contains both decode and issuance functions
 - **WHEN** `backend/app/core/security.py` is statically inspected
-- **THEN** there is NO function named `create_access_token` or `create_refresh_token`
-- **THEN** there is NO import of `passlib` or `bcrypt` (those belong in Change 09)
-
----
+- **THEN** it defines `decode_access_token` (unchanged), `hash_password`, `verify_password`, `create_access_token`, and `create_refresh_token`
+- **THEN** the D-07 "decode-only" restriction is no longer in effect
 
 ### Requirement: JWT-related Settings additions
 `backend/app/core/config.py` SHALL declare the following new fields in `Settings`, and `backend/.env.example` SHALL document them:
@@ -180,3 +173,4 @@ These additions are purely additive — no existing `Settings` fields are modifi
 - **WHEN** `backend/.env.example` is read
 - **THEN** it contains placeholder entries for `SECRET_KEY`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `REFRESH_TOKEN_EXPIRE_DAYS`
 - **THEN** the `SECRET_KEY` placeholder is a clearly fake example value (e.g., `your-super-secret-key-change-in-production`)
+
