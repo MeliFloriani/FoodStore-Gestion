@@ -55,4 +55,9 @@ def build_v1_router(settings: Settings) -> APIRouter:
             "version": get_app_version(),
         }
 
+    # --- Auth endpoints (Change auth-register-login) ---
+    from app.api.v1.auth import auth_router  # noqa: PLC0415 — lazy import inside factory
+
+    router.include_router(auth_router)
+
     return router
