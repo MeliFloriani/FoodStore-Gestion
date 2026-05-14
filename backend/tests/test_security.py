@@ -117,44 +117,56 @@ def test_decode_malformed_token_raises_unauthorized(override_settings) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Scenario: security.py does not contain issuance functions (static)
+# Scenario: security.py now contains issuance functions (D-07 lifted by change auth-register-login)
 # ---------------------------------------------------------------------------
 
 
-def test_security_module_has_no_issuance_functions() -> None:
-    """security.py must not expose create_access_token or create_refresh_token."""
+def test_security_module_has_issuance_functions() -> None:
+    """security.py must expose create_access_token and create_refresh_token.
+
+    NOTE: D-07 (decode-only) was intentionally lifted by change auth-register-login.
+    These functions now exist in security.py as per the change design.
+    """
     import app.core.security as sec
 
-    assert not hasattr(sec, "create_access_token"), (
-        "create_access_token should not exist in security.py (deferred to Change 09)"
+    assert hasattr(sec, "create_access_token"), (
+        "create_access_token must exist in security.py (D-07 lifted by auth-register-login)"
     )
-    assert not hasattr(sec, "create_refresh_token"), (
-        "create_refresh_token should not exist in security.py (deferred to Change 09)"
+    assert hasattr(sec, "create_refresh_token"), (
+        "create_refresh_token must exist in security.py (D-07 lifted by auth-register-login)"
     )
 
 
-def test_security_module_has_no_bcrypt_import() -> None:
-    """security.py must not import passlib or bcrypt."""
-    import importlib
-    import inspect
+def test_security_module_has_bcrypt_functions() -> None:
+    """security.py must expose hash_password and verify_password (D-07 lifted).
 
+    NOTE: D-07 (decode-only) was intentionally lifted by change auth-register-login.
+    Password hashing functions now live in security.py.
+    """
     import app.core.security as sec
 
-    source = inspect.getsource(sec)
-    assert "passlib" not in source
-    assert "bcrypt" not in source
+    assert hasattr(sec, "hash_password"), (
+        "hash_password must exist in security.py (D-07 lifted by auth-register-login)"
+    )
+    assert hasattr(sec, "verify_password"), (
+        "verify_password must exist in security.py (D-07 lifted by auth-register-login)"
+    )
 
 
 def test_security_module_has_no_create_token_source() -> None:
-    """security.py must not define create_access_token or create_refresh_token functions."""
+    """security.py must define create_access_token and create_refresh_token functions.
+
+    NOTE: Previously this test verified they did NOT exist (D-07 decode-only).
+    D-07 was lifted by change auth-register-login; now they MUST exist.
+    """
     import app.core.security as sec
 
-    # Check via hasattr — function definitions are reflected as attributes
-    assert not hasattr(sec, "create_access_token"), (
-        "create_access_token function defined in security.py — deferred to Change 09"
+    # Functions must be callable
+    assert callable(getattr(sec, "create_access_token", None)), (
+        "create_access_token must be callable in security.py"
     )
-    assert not hasattr(sec, "create_refresh_token"), (
-        "create_refresh_token function defined in security.py — deferred to Change 09"
+    assert callable(getattr(sec, "create_refresh_token", None)), (
+        "create_refresh_token must be callable in security.py"
     )
 
 
