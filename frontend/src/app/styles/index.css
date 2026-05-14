@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light mode semantic tokens */
+    --color-background: #ffffff;
+    --color-foreground: #111827;
+
+    --color-muted: #f3f4f6;
+    --color-muted-foreground: #6b7280;
+
+    --color-accent: #f3f4f6;
+    --color-accent-foreground: #111827;
+
+    --color-destructive: #f04438;
+    --color-destructive-foreground: #ffffff;
+
+    --color-border: #e5e7eb;
+    --color-input: #e5e7eb;
+    --color-ring: #f04438;
+
+    --color-card: #ffffff;
+    --color-card-foreground: #111827;
+
+    --color-popover: #ffffff;
+    --color-popover-foreground: #111827;
+
+    --color-primary: #f04438;
+    --color-primary-foreground: #ffffff;
+
+    --color-secondary: #f3f4f6;
+    --color-secondary-foreground: #111827;
+  }
+
+  .dark {
+    /* Dark mode semantic tokens */
+    --color-background: #111827;
+    --color-foreground: #f9fafb;
+
+    --color-muted: #1f2937;
+    --color-muted-foreground: #9ca3af;
+
+    --color-accent: #1f2937;
+    --color-accent-foreground: #f9fafb;
+
+    --color-destructive: #d92d20;
+    --color-destructive-foreground: #ffffff;
+
+    --color-border: #374151;
+    --color-input: #374151;
+    --color-ring: #f04438;
+
+    --color-card: #1f2937;
+    --color-card-foreground: #f9fafb;
+
+    --color-popover: #1f2937;
+    --color-popover-foreground: #f9fafb;
+
+    --color-primary: #f04438;
+    --color-primary-foreground: #ffffff;
+
+    --color-secondary: #1f2937;
+    --color-secondary-foreground: #f9fafb;
+  }
+}
