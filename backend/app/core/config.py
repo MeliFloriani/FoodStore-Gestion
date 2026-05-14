@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
     LOG_LEVEL: str = "INFO"
     RATE_LIMIT_DEFAULT: str = "100/minute"
+    BCRYPT_COST: int = 12
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

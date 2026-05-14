@@ -1,22 +1,51 @@
 """
-JWT decode helper — decode-only scope.
+JWT security utilities — decode, issuance, and password hashing.
 
-This module provides ONLY token validation/decoding functionality.
-Token issuance (create_access_token, create_refresh_token) and password
-hashing (verify_password, hash_password) are intentionally deferred to
-Change 09 (auth-jwt-issuance / auth-register-login).
+This module was initially decode-only (D-07). Change auth-register-login lifts
+that restriction and adds:
+  - hash_password / verify_password (passlib[bcrypt])
+  - create_access_token / create_refresh_token (python-jose)
 
-The only consumer of this module within this change is api/deps.py::get_current_user.
-
-Design decision D-07: decode-only to keep this change focused on infrastructure
-plumbing without introducing issuance complexity that belongs in the auth domain.
+Design decisions:
+- D-05: get_settings() called lazily inside each function — never at module level.
+- D-07 (lifted): issuance functions now live here per change auth-register-login.
+- RefreshToken cleartext is never persisted — only SHA-256 hex digest.
+- datetime.now(timezone.utc) used throughout (datetime.utcnow() deprecated in 3.12).
 """
 
 from __future__ import annotations
 
+import hashlib
+from datetime import datetime, timezone
+
 from jose import JWTError, jwt
+from passlib.context import CryptContext
 
 from app.core.exceptions import UnauthorizedError
+
+# ---------------------------------------------------------------------------
+# CryptContext — lazy singleton pattern (D-05)
+# ---------------------------------------------------------------------------
+
+# We build the context lazily per call so that BCRYPT_COST from Settings
+# is always respected, even in tests that override settings.
+# The cost is read once when _get_crypt_context() is first called.
+_crypt_context: CryptContext | None = None
+
+
+def _get_crypt_context() -> CryptContext:
+    """Return (or create) the passlib CryptContext with bcrypt rounds from settings."""
+    global _crypt_context  # noqa: PLW0603
+    if _crypt_context is None:
+        from app.core.config import get_settings
+
+        settings = get_settings()
+        _crypt_context = CryptContext(
+            schemes=["bcrypt"],
+            deprecated="auto",
+            bcrypt__rounds=settings.BCRYPT_COST,
+        )
+    return _crypt_context
 
 
 def decode_access_token(token: str) -> dict:  # type: ignore[type-arg]
@@ -78,3 +107,107 @@ def decode_access_token(token: str) -> dict:  # type: ignore[type-arg]
             "Token inválido o expirado",
             code="invalid_token",
         ) from exc
+
+
+# ---------------------------------------------------------------------------
+# Password hashing (task 3.2)
+# ---------------------------------------------------------------------------
+
+
+def hash_password(plain: str) -> str:
+    """Hash a plaintext password using bcrypt at the configured cost.
+
+    Args:
+        plain: The plaintext password string.
+
+    Returns:
+        A bcrypt hash string (60 characters, $2b$ format).
+    """
+    return _get_crypt_context().hash(plain)
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    """Verify a plaintext password against a stored bcrypt hash.
+
+    Returns False instead of raising on invalid/malformed hashes — prevents
+    information leakage about the hash format or failure mode.
+
+    Args:
+        plain: The plaintext password to verify.
+        hashed: The stored bcrypt hash string.
+
+    Returns:
+        True if the password matches, False otherwise.
+    """
+    try:
+        return _get_crypt_context().verify(plain, hashed)
+    except Exception:
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Token issuance (tasks 3.3, 3.4)
+# ---------------------------------------------------------------------------
+
+
+def create_access_token(subject: str, expires_in: int = 1800) -> str:
+    """Create a signed JWT access token.
+
+    Args:
+        subject: The 'sub' claim — typically the user UUID as a string.
+        expires_in: Seconds until expiry (default: 1800 = 30 minutes).
+
+    Returns:
+        A signed JWT string with claims: sub, iat, exp, type="access".
+    """
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": subject,
+        "iat": int(now.timestamp()),
+        "exp": int(now.timestamp()) + expires_in,
+        "type": "access",
+    }
+    return jwt.encode(
+        payload,
+        settings.SECRET_KEY.get_secret_value(),
+        algorithm=settings.JWT_ALGORITHM,
+    )
+
+
+def create_refresh_token(
+    subject: str,
+    expires_in: int = 7 * 24 * 3600,
+) -> tuple[str, str]:
+    """Create a signed JWT refresh token and its SHA-256 hex digest.
+
+    The cleartext JWT is returned to the client.
+    Only the SHA-256 hex digest is persisted in the database (D-20).
+
+    Args:
+        subject: The 'sub' claim — typically the user UUID as a string.
+        expires_in: Seconds until expiry (default: 7 days).
+
+    Returns:
+        A tuple of (cleartext_jwt, sha256_hex_digest).
+        The digest is exactly 64 hexadecimal characters.
+    """
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": subject,
+        "iat": int(now.timestamp()),
+        "exp": int(now.timestamp()) + expires_in,
+        "type": "refresh",
+    }
+    cleartext = jwt.encode(
+        payload,
+        settings.SECRET_KEY.get_secret_value(),
+        algorithm=settings.JWT_ALGORITHM,
+    )
+    digest = hashlib.sha256(cleartext.encode()).hexdigest()
+    return cleartext, digest
