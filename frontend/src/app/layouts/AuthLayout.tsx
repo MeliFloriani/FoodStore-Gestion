@@ -4,7 +4,7 @@ import { useAuthStore } from '@/entities/auth/model/store'
 export function AuthLayout() {
   const status = useAuthStore((s) => s.status)
 
-  if (status === 'idle') {
+  if (status === 'idle' || status === 'authenticating') {
     return (
       <div
         role="status"

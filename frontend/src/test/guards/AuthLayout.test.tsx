@@ -6,8 +6,9 @@ import { useAuthStore } from '@/entities/auth/model/store'
 import type { User } from '@/entities/auth/types'
 
 const mockUser: User = {
-  id: 1,
+  id: '550e8400-e29b-41d4-a716-446655440000',
   nombre: 'Test User',
+  apellido: 'Test Apellido',
   email: 'test@example.com',
   roles: ['CLIENT'],
 }
@@ -32,6 +33,13 @@ describe('AuthLayout', () => {
 
   it('shows loading spinner when status is idle', () => {
     useAuthStore.setState({ status: 'idle' })
+    renderAuthLayout()
+    expect(screen.getByRole('status', { name: /loading/i })).toBeInTheDocument()
+    expect(screen.queryByText('Login Content')).not.toBeInTheDocument()
+  })
+
+  it('shows loading spinner when status is authenticating (task 11.2)', () => {
+    useAuthStore.setState({ status: 'authenticating' })
     renderAuthLayout()
     expect(screen.getByRole('status', { name: /loading/i })).toBeInTheDocument()
     expect(screen.queryByText('Login Content')).not.toBeInTheDocument()
