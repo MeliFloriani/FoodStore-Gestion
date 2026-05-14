@@ -1,6 +1,6 @@
 # Changes — Roadmap Consolidado de Food Store
 
-> **Última actualización**: 2026-05-12
+> **Última actualización**: 2026-05-13
 > **Versión**: 1.0 (consolidada tras auditoría Descripción + Historias de Usuario + Integrador.txt v5.0)
 > **Metodología**: Spec-Driven Development (SDD) sobre OpenSpec / OPSX
 > **Total de changes activos**: 26
@@ -72,12 +72,6 @@ Cuando el change está implementado y verificado, se **archiva**: las specs delt
 - **Historias**: US-000a, US-068, US-074
 - **Dependencias**: Change 01
 - **Notas críticas**: Prefijo de routers `/api/v1`. Errores RFC 7807 con `{ detail, code, field? }`. Swagger en `/docs` y ReDoc en `/redoc` (CE-08).
-
-### Change 04 — `backend-base-patterns`
-- **Objetivo**: Implementar `BaseRepository[T]` genérico con CRUD + soft delete, `UnitOfWork` como context manager async (commit/rollback automático) y dependencias FastAPI `get_current_user` y `require_role(roles)`.
-- **Historias**: US-000d
-- **Dependencias**: Change 03
-- **Notas críticas**: Ningún `Service` debe ejecutar `session.commit()` directo (criterio rúbrica UoW). Repositorios reciben sesión por inyección desde el UoW.
 
 ### Change 05 — `frontend-core-foundation`
 - **Objetivo**: Configurar React + Vite + TypeScript estricto, Tailwind, `react-router`, `TanStack Query` (`QueryClientProvider`), instancia centralizada de Axios con interceptores (request: bearer; response: 401→refresh+retry con cola), los cuatro stores Zustand y el handler global de errores HTTP.
@@ -367,6 +361,14 @@ todos ────────────────────────�
   - Usuario admin seed: `admin@foodstore.com` / `Admin1234!`.
 - **Estado**: ✅ Hecho (archivado 2026-05-12)
 - **Evidencia**: `openspec/changes/archive/2026-05-12-database-migrations-and-seed/`
+
+### Change 04 — `backend-base-patterns`
+- **Objetivo**: Implementar `BaseRepository[T]` genérico con CRUD + soft delete, `UnitOfWork` como context manager async (commit/rollback automático) y dependencias FastAPI `get_current_user` y `require_role(roles)`.
+- **Historias**: US-000d
+- **Dependencias**: Change 03
+- **Notas críticas**: Ningún `Service` debe ejecutar `session.commit()` directo (criterio rúbrica UoW). Repositorios reciben sesión por inyección desde el UoW.
+- **Estado**: ✅ Hecho (archivado 2026-05-13)
+- **Evidencia**: `openspec/changes/archive/2026-05-13-backend-base-patterns/`
 
 ---
 
