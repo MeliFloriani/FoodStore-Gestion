@@ -52,7 +52,8 @@ class AuthService:
           (c) Create the Usuario record via uow.usuarios.create().
           (d) Look up the CLIENT role — raises RuntimeError if not seeded.
           (e) Create the UsuarioRol pivot record.
-          (f) Return the Usuario instance (with usuario_roles loaded via selectin).
+          (f) Re-query with explicit eager loading via get_with_roles() to avoid
+              MissingGreenlet when the caller serializes the result with Pydantic.
 
         Args:
             uow: The active UnitOfWork providing access to all repositories.
@@ -99,7 +100,24 @@ class AuthService:
             )
         )
 
-        return usuario
+        # (f) Re-query with explicit eager loading.
+        #
+        # WHY: The `usuario` object from uow.usuarios.create() is *persistent but
+        # unloaded* — its `usuario_roles` collection was never fetched from the DB.
+        # SQLAlchemy's lazy="selectin" fires during a SELECT-based load, not during
+        # add+flush. Accessing `usuario.usuario_roles` synchronously (e.g. via
+        # UserRead.model_validate) triggers a lazy-load in an async session context,
+        # producing: MissingGreenlet: greenlet_spawn has not been called.
+        #
+        # Solution: re-query the just-created row with selectinload options that
+        # populate both relationship levels in Python memory before returning.
+        # get_with_roles() loads: Usuario → [UsuarioRol] → Rol (two chained selectins).
+        loaded = await uow.usuarios.get_with_roles(usuario.id)
+        assert loaded is not None, (
+            f"Usuario {usuario.id} disappeared between flush and re-query — "
+            "this should never happen within a single transaction"
+        )
+        return loaded
 
     @staticmethod
     async def login_user(

@@ -18,14 +18,14 @@ from tests.fixtures.uow import make_uow_override
 
 
 @pytest.mark.asyncio
-async def test_auth_e2e_full_round_trip(async_session, async_client: AsyncClient) -> None:
+async def test_auth_e2e_full_round_trip(seeded_session, async_client: AsyncClient) -> None:
     """Full auth round-trip: register → login → authenticated request.
 
     Step 1: Register a new user → verify 201 + UserRead shape.
     Step 2: Login with same credentials → verify 200 + TokenResponse shape.
     Step 3: GET /api/v1/health with Authorization: Bearer → verify not rejected (not 401).
     """
-    app.dependency_overrides[get_uow] = make_uow_override(async_session)
+    app.dependency_overrides[get_uow] = make_uow_override(seeded_session)
 
     try:
         # --- Step 1: Register ---
@@ -83,9 +83,9 @@ async def test_auth_e2e_full_round_trip(async_session, async_client: AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_auth_e2e_token_is_valid_jwt(async_session, async_client: AsyncClient) -> None:
+async def test_auth_e2e_token_is_valid_jwt(seeded_session, async_client: AsyncClient) -> None:
     """The access_token returned by login must be a valid JWT decodable by decode_access_token."""
-    app.dependency_overrides[get_uow] = make_uow_override(async_session)
+    app.dependency_overrides[get_uow] = make_uow_override(seeded_session)
 
     try:
         # Register + login

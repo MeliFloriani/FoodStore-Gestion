@@ -12,10 +12,12 @@ responsibility of UnitOfWork (see core/uow.py).
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.user import RefreshToken, Rol, Usuario, UsuarioRol
 from app.repositories.base import BaseRepository
@@ -32,6 +34,10 @@ class UsuarioRepository(BaseRepository[Usuario]):
 
         Applies the soft-delete filter (deleted_at IS NULL) automatically.
 
+        NOTE: The returned object has usuario_roles loaded via the model's
+        lazy="selectin" strategy (fires during the SELECT). Safe to use with
+        UserRead.model_validate() as long as this method is the load path.
+
         Args:
             email: The email address to look up.
 
@@ -42,6 +48,44 @@ class UsuarioRepository(BaseRepository[Usuario]):
             select(Usuario).where(
                 Usuario.email == email,
                 Usuario.deleted_at.is_(None),
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_with_roles(self, user_id: uuid.UUID) -> Usuario | None:
+        """Return an active Usuario with usuario_roles and each rol fully loaded.
+
+        Uses explicit selectinload() options to guarantee that both levels of the
+        relationship chain are populated in Python memory before returning:
+            Usuario.usuario_roles  →  selectinload
+            UsuarioRol.rol         →  selectinload (chained)
+
+        This method MUST be used whenever the caller intends to serialize the
+        result into UserRead (or any schema that accesses ur.rol.codigo), because
+        SQLAlchemy 2.x async sessions cannot satisfy lazy loads in synchronous
+        code (e.g. Pydantic's model_validate). Using a newly-created object
+        (add + flush) directly would trigger MissingGreenlet.
+
+        Design note: This is an intentional post-insert re-query pattern for
+        SQLAlchemy async. The cost is two extra SELECTs (selectin strategy issues
+        one query for usuario_roles + one for rol objects). Acceptable for an
+        auth endpoint that runs once per registration.
+
+        Args:
+            user_id: UUID primary key of the Usuario to load.
+
+        Returns:
+            The Usuario instance with usuario_roles and rol fully loaded,
+            or None if not found / soft-deleted.
+        """
+        result = await self.session.execute(
+            select(Usuario)
+            .where(
+                Usuario.id == user_id,
+                Usuario.deleted_at.is_(None),
+            )
+            .options(
+                selectinload(Usuario.usuario_roles).selectinload(UsuarioRol.rol)
             )
         )
         return result.scalar_one_or_none()

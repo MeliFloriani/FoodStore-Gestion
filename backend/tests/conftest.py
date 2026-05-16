@@ -53,16 +53,33 @@ def cache_clear() -> None:  # type: ignore[return]
 
     Prevents cached Settings, engine, session factory, and rate limiter instances
     from one test bleeding into another (addresses MED-05 / D-16 / P-03).
+
+    Rate limiter storage reset: slowapi's MemoryStorage accumulates hits across
+    tests when the module-level `_limiter` in auth.py holds onto the same
+    Limiter instance. We reset the storage directly so rate-limit integration
+    tests start from a clean slate on every test run.
     """
     get_settings.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     get_limiter.cache_clear()
+    # Reset in-memory rate limit counters so tests don't bleed into each other.
+    # Import lazily to avoid triggering Settings at collection time.
+    try:
+        from app.api.v1.auth import _limiter as auth_limiter
+        auth_limiter._storage.reset()
+    except Exception:
+        pass
     yield
     get_settings.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
     get_limiter.cache_clear()
+    try:
+        from app.api.v1.auth import _limiter as auth_limiter
+        auth_limiter._storage.reset()
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -214,6 +231,29 @@ async def async_session(async_connection: AsyncConnection) -> AsyncGenerator[Asy
 
     await session.rollback()  # Rolls back SAVEPOINT
     await session.close()
+
+
+# ---------------------------------------------------------------------------
+# Seeded session — async_session with catalog roles pre-loaded
+# ---------------------------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def seeded_session(async_session: AsyncSession) -> AsyncGenerator[AsyncSession, None]:  # type: ignore[return]
+    """async_session with the 4 RBAC roles seeded (not committed — rolls back at teardown).
+
+    Auth integration tests require the CLIENT role to exist so that
+    AuthService.register_user() can assign it. This fixture seeds only the roles
+    table (the minimum needed) using the same session/SAVEPOINT as async_session.
+
+    Usage:
+        async def test_register(seeded_session, async_client):
+            app.dependency_overrides[get_uow] = make_uow_override(seeded_session)
+    """
+    from app.db.seed import seed_roles
+
+    await seed_roles(async_session)
+    yield async_session
 
 
 # ---------------------------------------------------------------------------

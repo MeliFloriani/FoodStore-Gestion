@@ -36,6 +36,7 @@ def _make_mock_uow() -> MagicMock:
     # All repo methods return coroutines
     uow.usuarios.get_by_email = AsyncMock(return_value=None)
     uow.usuarios.create = AsyncMock()
+    uow.usuarios.get_with_roles = AsyncMock(return_value=None)
     uow.roles.get_by_codigo = AsyncMock(return_value=None)
     uow.usuario_roles.create = AsyncMock()
     uow.refresh_tokens.insert = AsyncMock()
@@ -96,6 +97,8 @@ async def test_register_user_success(override_settings) -> None:
     uow.roles.get_by_codigo = AsyncMock(return_value=_make_rol("CLIENT"))
     # UsuarioRol create returns anything
     uow.usuario_roles.create = AsyncMock(return_value=MagicMock())
+    # get_with_roles() re-queries after insert — returns the same object (eager loaded)
+    uow.usuarios.get_with_roles = AsyncMock(return_value=saved_usuario)
 
     data = _make_register_data()
     result = await AuthService.register_user(uow, data)
@@ -105,6 +108,7 @@ async def test_register_user_success(override_settings) -> None:
     uow.usuarios.create.assert_called_once()
     uow.roles.get_by_codigo.assert_called_once_with("CLIENT")
     uow.usuario_roles.create.assert_called_once()
+    uow.usuarios.get_with_roles.assert_called_once_with(saved_usuario.id)
 
 
 @pytest.mark.asyncio

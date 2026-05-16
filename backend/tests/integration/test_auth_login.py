@@ -39,9 +39,9 @@ async def _register_user(client: AsyncClient, email: str, password: str) -> None
 
 
 @pytest.mark.asyncio
-async def test_login_200_happy_path(async_session, async_client: AsyncClient) -> None:
+async def test_login_200_happy_path(seeded_session, async_client: AsyncClient) -> None:
     """POST /api/v1/auth/login with valid credentials returns 200 and TokenResponse."""
-    app.dependency_overrides[get_uow] = make_uow_override(async_session)
+    app.dependency_overrides[get_uow] = make_uow_override(seeded_session)
     try:
         email = "login_happy@example.com"
         password = "Secur3Pass!"
@@ -67,9 +67,9 @@ async def test_login_200_happy_path(async_session, async_client: AsyncClient) ->
 
 
 @pytest.mark.asyncio
-async def test_login_401_wrong_password(async_session, async_client: AsyncClient) -> None:
+async def test_login_401_wrong_password(seeded_session, async_client: AsyncClient) -> None:
     """POST /api/v1/auth/login with wrong password returns 401 with code invalid_credentials."""
-    app.dependency_overrides[get_uow] = make_uow_override(async_session)
+    app.dependency_overrides[get_uow] = make_uow_override(seeded_session)
     try:
         email = "login_wrong_pw@example.com"
         password = "Secur3Pass!"
@@ -109,13 +109,13 @@ async def test_login_401_nonexistent_email(async_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_login_429_rate_limit(async_session, async_client: AsyncClient) -> None:
+async def test_login_429_rate_limit(seeded_session, async_client: AsyncClient) -> None:
     """The 6th login request from the same IP within the rate-limit window returns 429.
 
     The @limiter.limit("5/15minutes") decorator on the login endpoint limits to 5 per window.
     The cache_clear autouse fixture resets the limiter between tests.
     """
-    app.dependency_overrides[get_uow] = make_uow_override(async_session)
+    app.dependency_overrides[get_uow] = make_uow_override(seeded_session)
     try:
         # Make 5 requests — they should all go through (401 or 200, not 429)
         for i in range(5):

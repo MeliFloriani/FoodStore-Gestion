@@ -22,9 +22,9 @@ from tests.fixtures.uow import make_uow_override
 
 
 @pytest.mark.asyncio
-async def test_register_201_happy_path(async_session, async_client: AsyncClient) -> None:
+async def test_register_201_happy_path(seeded_session, async_client: AsyncClient) -> None:
     """POST /api/v1/auth/register with valid payload returns 201 and UserRead body."""
-    app.dependency_overrides[get_uow] = make_uow_override(async_session)
+    app.dependency_overrides[get_uow] = make_uow_override(seeded_session)
     try:
         response = await async_client.post(
             "/api/v1/auth/register",
@@ -47,9 +47,9 @@ async def test_register_201_happy_path(async_session, async_client: AsyncClient)
 
 
 @pytest.mark.asyncio
-async def test_register_409_duplicate_email(async_session, async_client: AsyncClient) -> None:
+async def test_register_409_duplicate_email(seeded_session, async_client: AsyncClient) -> None:
     """POST /api/v1/auth/register with duplicate email returns 409."""
-    app.dependency_overrides[get_uow] = make_uow_override(async_session)
+    app.dependency_overrides[get_uow] = make_uow_override(seeded_session)
     try:
         payload = {
             "nombre": "Juan",
