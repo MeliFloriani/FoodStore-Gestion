@@ -46,6 +46,13 @@ export const useAuthStore = create<AuthStore>()(
       updateTokens: (accessToken, refreshToken) =>
         set({ accessToken, refreshToken }),
 
+      /**
+       * Synchronously clear auth state and set status to 'unauthenticated'.
+       *
+       * Callers in `app/` or `features/` are responsible for calling
+       * `POST /auth/logout` BEFORE invoking this action.
+       * This store action is synchronous and does not make network calls.
+       */
       logout: () =>
         set({
           accessToken: null,

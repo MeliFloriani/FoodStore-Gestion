@@ -1,6 +1,6 @@
 import axios, { type InternalAxiosRequestConfig, type AxiosResponse } from 'axios'
 import { env } from '@/shared/lib/env'
-import { AUTH_REFRESH, AUTH_LOGIN } from '@/shared/api/endpoints'
+import { AUTH_REFRESH, AUTH_LOGIN, AUTH_LOGOUT } from '@/shared/api/endpoints'
 
 // Lazily imported to avoid circular deps — only getState() is used
 import { useAuthStore } from '@/entities/auth/model/store'
@@ -68,7 +68,7 @@ http.interceptors.response.use(
     // Skip 401 handling for retry requests and auth endpoints
     const isRetry = originalRequest.__isRetry === true
     const isAuthEndpoint =
-      url.includes(AUTH_REFRESH) || url.includes(AUTH_LOGIN)
+      url.includes(AUTH_REFRESH) || url.includes(AUTH_LOGIN) || url.includes(AUTH_LOGOUT)
 
     if (status !== 401 || isRetry || isAuthEndpoint) {
       return Promise.reject(error)
@@ -111,6 +111,12 @@ http.interceptors.response.use(
           refreshPromise = null
         })
         .catch((refreshError: unknown) => {
+          // On refresh failure, `logout()` is called without posting to `/auth/logout`.
+          // The refresh token may remain valid in DB until TTL expiry. This is acceptable:
+          // an expired access token cannot be used; network-error scenarios do not
+          // invalidate the refresh token on the backend. The client's local state is
+          // cleared immediately to prevent stale-token usage from the UI.
+
           // 1. Logout from store
           useAuthStore.getState().logout()
 
@@ -135,3 +141,12 @@ http.interceptors.response.use(
     })
   },
 )
+
+/**
+ * Returns true if a token refresh is currently in progress.
+ * Used by cross-tab-sync.ts to avoid calling updateTokens() while a refresh
+ * is already active on this tab — prevents race conditions between tabs.
+ */
+export function isRefreshing(): boolean {
+  return refreshPromise !== null
+}

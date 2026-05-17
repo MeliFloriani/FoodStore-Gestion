@@ -2,15 +2,20 @@
 Integration tests for POST /api/v1/auth/login.
 
 Tasks 1.5 (stub xfail), 7.7, 7.8, 7.9, 7.10 (real tests added after router implementation).
+Task 6.7 — verify login now seeds family_id in the RefreshToken row.
 """
 
 from __future__ import annotations
 
+import hashlib
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 
 from app.core.uow import get_uow
 from app.main import app
+from app.models.user import RefreshToken
 from tests.fixtures.uow import make_uow_override
 
 
@@ -131,5 +136,48 @@ async def test_login_429_rate_limit(seeded_session, async_client: AsyncClient) -
             json={"email": "ratelimit_6@example.com", "password": "AnyPass123!"},
         )
         assert resp.status_code == 429
+    finally:
+        app.dependency_overrides.pop(get_uow, None)
+
+
+# ---------------------------------------------------------------------------
+# Task 6.7 — Login now seeds family_id in the RefreshToken row
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_login_seeds_family_id(
+    seeded_session,
+    async_session,
+    async_client: AsyncClient,
+) -> None:
+    """POST /api/v1/auth/login creates a RefreshToken row with a non-null family_id.
+
+    Task 6.7: Verifies that AuthService.login_user now calls uuid.uuid4() for
+    family_id and includes it in the RefreshToken constructor.
+    """
+    app.dependency_overrides[get_uow] = make_uow_override(seeded_session)
+    try:
+        email = "family_seed@example.com"
+        password = "Secur3Pass!"
+        await _register_user(async_client, email, password)
+
+        login_resp = await async_client.post(
+            "/api/v1/auth/login",
+            json={"email": email, "password": password},
+        )
+        assert login_resp.status_code == 200, f"Login failed: {login_resp.text}"
+        refresh_token_cleartext = login_resp.json()["refresh_token"]
+
+        # Look up the RefreshToken row by its hash
+        token_hash = hashlib.sha256(refresh_token_cleartext.encode()).hexdigest()
+        result = await seeded_session.execute(
+            select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+        )
+        rt = result.scalar_one_or_none()
+        assert rt is not None, "RefreshToken row not found after login"
+        assert rt.family_id is not None, "family_id must be set after login (NOT NULL)"
+        import uuid
+        uuid.UUID(str(rt.family_id))  # must be a valid UUID
     finally:
         app.dependency_overrides.pop(get_uow, None)

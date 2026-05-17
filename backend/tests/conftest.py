@@ -93,13 +93,21 @@ def override_settings() -> None:  # type: ignore[return]
 
     Protocol (P-03 / D-16):
     1. Clear all four lru_cache singletons BEFORE setting overrides.
-    2. Register dependency override so FastAPI Depends(get_settings) returns test settings.
-    3. Yield (test runs).
-    4. Clear dependency overrides.
-    5. Clear all four lru_cache singletons AFTER clearing overrides.
+    2. Set os.environ["DATABASE_URL"] to TEST_DATABASE_URL so that any direct
+       call to get_settings() (e.g., from get_engine() inside a second UoW)
+       also picks up the test database URL — not just FastAPI DI paths.
+    3. Register dependency override so FastAPI Depends(get_settings) returns test settings.
+    4. Yield (test runs).
+    5. Restore the original DATABASE_URL in os.environ.
+    6. Clear dependency overrides.
+    7. Clear all four lru_cache singletons AFTER clearing overrides.
 
-    This ensures no cached state leaks between tests.
+    This ensures no cached state leaks between tests, AND that code paths that
+    call get_settings() directly (e.g., UnitOfWork().__aenter__ → get_session_factory()
+    → get_engine() → get_settings()) also use the test database URL. This is critical
+    for the D-07-C Opción A second-UoW pattern in the auth refresh router.
     """
+    _original_db_url = os.environ.get("DATABASE_URL")
 
     def _override() -> Settings:
         return Settings(
@@ -118,11 +126,23 @@ def override_settings() -> None:  # type: ignore[return]
     get_session_factory.cache_clear()
     get_limiter.cache_clear()
 
+    # Override DATABASE_URL in the environment so that direct calls to get_settings()
+    # (outside of FastAPI DI, e.g. from UnitOfWork().__aenter__) also resolve to the
+    # test database. pydantic-settings reads from os.environ first (before .env file),
+    # so this takes precedence over the DATABASE_URL in .env.
+    os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]
+
     app.dependency_overrides[get_settings] = _override
 
     yield
 
-    # Teardown — clear overrides and caches
+    # Teardown — restore original DATABASE_URL
+    if _original_db_url is not None:
+        os.environ["DATABASE_URL"] = _original_db_url
+    else:
+        os.environ.pop("DATABASE_URL", None)
+
+    # Clear overrides and caches
     app.dependency_overrides.clear()
     get_settings.cache_clear()
     get_engine.cache_clear()

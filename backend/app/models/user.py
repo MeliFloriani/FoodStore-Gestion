@@ -22,6 +22,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import CHAR, Column, ForeignKey, UniqueConstraint
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, Relationship
 
 from app.models.base import Base  # noqa: F401 — also imports app.db.base (naming_convention)
@@ -174,6 +175,8 @@ class RefreshToken(Base, table=True):
     D-20: token_hash CHAR(64) almacena hashlib.sha256(token).hexdigest().
           El token en claro nunca se persiste.
           Lógica de generación y verificación → Change 06 (auth service).
+    D-07-A: family_id agrupa tokens de la misma sesión para permitir revocación
+            por familia en caso de replay attack. Callers MUST supply family_id.
     """
 
     __tablename__ = "refresh_token"
@@ -187,6 +190,14 @@ class RefreshToken(Base, table=True):
             ForeignKey("usuario.id", ondelete="CASCADE"),
             nullable=False,
             index=True,  # FK no indexada automáticamente por PostgreSQL
+        )
+    )
+    family_id: uuid.UUID = Field(
+        sa_column=Column(
+            "family_id",
+            PG_UUID(as_uuid=True),
+            nullable=False,
+            index=True,
         )
     )
     expires_at: datetime = Field(nullable=False)

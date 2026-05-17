@@ -6,9 +6,13 @@ import type { User } from '@/entities/auth/types'
 
 const mock = new MockAdapter(http)
 
+// Tech debt fix (post Change 07 blind audit): id was numeric (1), inconsistent with UUID
+// string used across the codebase. apellido was missing (required by User type).
+// UUID matches format used in AuthSync.test.tsx:22 for consistency.
 const mockUser: User = {
-  id: 1,
+  id: '550e8400-e29b-41d4-a716-446655440000',
   nombre: 'Test User',
+  apellido: 'User',
   email: 'test@example.com',
   roles: ['CLIENT'],
 }

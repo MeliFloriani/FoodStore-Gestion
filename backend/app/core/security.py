@@ -186,6 +186,11 @@ def create_refresh_token(
     The cleartext JWT is returned to the client.
     Only the SHA-256 hex digest is persisted in the database (D-20).
 
+    Uniqueness: A `jti` (JWT ID) claim with a random UUID is included to ensure
+    each issued token is unique even when called multiple times within the same
+    second for the same user. This prevents token_hash unique constraint violations
+    during rapid token rotation in tests and production.
+
     Args:
         subject: The 'sub' claim — typically the user UUID as a string.
         expires_in: Seconds until expiry (default: 7 days).
@@ -194,6 +199,8 @@ def create_refresh_token(
         A tuple of (cleartext_jwt, sha256_hex_digest).
         The digest is exactly 64 hexadecimal characters.
     """
+    import uuid as _uuid
+
     from app.core.config import get_settings
 
     settings = get_settings()
@@ -203,6 +210,7 @@ def create_refresh_token(
         "iat": int(now.timestamp()),
         "exp": int(now.timestamp()) + expires_in,
         "type": "refresh",
+        "jti": str(_uuid.uuid4()),  # Unique token ID — prevents hash collision on rapid rotation
     }
     cleartext = jwt.encode(
         payload,

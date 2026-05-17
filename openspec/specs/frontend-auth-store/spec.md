@@ -14,12 +14,17 @@ Define the Zustand authentication store for the Food Store frontend: the canonic
 - `isAuthenticated: boolean` — derived from `status === 'authenticated'`. This is a computed/derived field, NOT stored independently (to avoid sync bugs). It SHALL be exposed as a Zustand `computed` value or a selector function.
 
 **Actions** (part of the store):
-- `setTokens(accessToken: string, refreshToken: string): void`
-- `setUser(user: User): void`
-- `logout(): void` — sets `accessToken: null`, `refreshToken: null`, `user: null`, `status: 'unauthenticated'`
-- `clear(): void` — same as logout (alias for explicit reset)
-- `login(accessToken: string, refreshToken: string, user: User): void` — atomically calls `setTokens` + `setUser` + sets `status: 'authenticated'`. This is the canonical action for post-auth flows (US-000e).
-- `updateTokens(accessToken: string, refreshToken: string): void` — alias for `setTokens`; exposed explicitly to match US-000e contract.
+- `setTokens(accessToken: string, refreshToken: string): void` — UNCHANGED
+- `setUser(user: User): void` — UNCHANGED
+- `login(accessToken: string, refreshToken: string, user: User): void` — atomically calls `setTokens` + `setUser` + sets `status: 'authenticated'`. This is the canonical action for post-auth flows (US-000e). UNCHANGED
+- `updateTokens(accessToken: string, refreshToken: string): void` — alias for `setTokens`; exposed explicitly to match US-000e contract. UNCHANGED
+- `clear(): void` — same as logout (alias for explicit reset). UNCHANGED
+- `logout(): void` — SYNCHRONOUS. Immediately sets state: `accessToken: null`, `refreshToken: null`, `user: null`, `status: 'unauthenticated'`. Does NOT make any network calls.
+  NOTE: The store MUST NOT import `http.ts` — the HTTP call to `POST /auth/logout` is the responsibility of the caller in the `app/` or `features/` layer, invoked BEFORE calling `logout()`. This preserves the FSD import invariant: `entities/auth/store` SHALL NOT import `shared/api/http.ts`.
+
+**Clarification**: The Action table entry previously listed `logout(): Promise<void>` — this was incorrect. The store action is and remains synchronous. The "async" behavior described in prior drafts referred to the caller's responsibility to first await the backend logout call, then call `authStore.getState().logout()` synchronously. The store action itself is not async.
+
+- `triggerRehydrationFetch(): void` — UNCHANGED
 
 **Selectors**:
 - `isAuthenticated(): boolean` — returns `status === 'authenticated'`
@@ -30,10 +35,17 @@ Define the Zustand authentication store for the Food Store frontend: the canonic
 - **THEN** `authStore.getState().accessToken` equals `'at123'`
 - **THEN** `authStore.getState().refreshToken` equals `'rt456'`
 
-#### Scenario: logout clears all auth state
-- **WHEN** `authStore.getState().logout()` is called after a successful login
+#### Scenario: logout clears all auth state synchronously
+- **WHEN** `authStore.getState().logout()` is called
 - **THEN** `accessToken`, `refreshToken`, and `user` are all `null`
 - **THEN** `status` is `'unauthenticated'`
+- **THEN** `isAuthenticated()` returns `false`
+
+#### Scenario: Caller is responsible for backend logout before calling store logout
+- **WHEN** a logout action is triggered from the UI
+- **THEN** the caller (feature or app layer) first calls `POST /auth/logout` with the current `refreshToken`
+- **THEN** after the network call completes (success or failure), the caller calls `authStore.getState().logout()` to clear local state
+- **THEN** local state is cleared regardless of network outcome
 
 #### Scenario: login sets all auth state atomically
 - **WHEN** `login(accessToken, refreshToken, user)` is called

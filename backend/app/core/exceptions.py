@@ -7,9 +7,46 @@ RFC 7807 ProblemDetail response without needing to catch multiple types.
 
 Note: AppValidationError is prefixed with App* to avoid name collision with
 pydantic.ValidationError, which is a different concept (schema validation).
+
+TokenReplayError is intentionally NOT a subclass of AppError or HTTPException.
+It is a plain Python Exception used as an internal signal within the auth
+refresh flow (D-07-C). It MUST NOT be registered with a global exception_handler
+because the router's explicit except block must be the sole catch point — the
+second-UoW revoke_family call must complete before the 401 is returned.
 """
 
 from __future__ import annotations
+
+import uuid
+
+
+class TokenReplayError(Exception):
+    """Raised by AuthService.rotate_refresh when a replay attack is detected.
+
+    This exception signals that a previously-rotated (already revoked) refresh
+    token was presented again. It is caught exclusively by the /auth/refresh
+    router endpoint which then opens a SECOND independent UnitOfWork to call
+    revoke_family(family_id) before re-raising as UnauthorizedError.
+
+    CRITICAL INHERITANCE RULE: This class inherits directly from Exception, NOT
+    from AppError, HTTPException, or any subclass thereof. If it inherited from
+    AppError, the global AppError exception_handler would intercept it before
+    the router's explicit except block — bypassing the second-UoW commit and
+    leaving the token family active (a security defect, D-07-C B-1 fix).
+
+    Do NOT register a global @app.exception_handler(TokenReplayError).
+
+    Args:
+        family_id: The UUID of the compromised token family to revoke.
+        user_id: The UUID of the user who owns the compromised family.
+    """
+
+    def __init__(self, family_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        super().__init__(
+            f"Replay attack detected: family_id={family_id}, user_id={user_id}"
+        )
+        self.family_id = family_id
+        self.user_id = user_id
 
 
 class AppError(Exception):

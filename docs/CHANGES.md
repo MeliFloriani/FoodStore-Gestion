@@ -1,9 +1,9 @@
 # Changes — Roadmap Consolidado de Food Store
 
-> **Última actualización**: 2026-05-14
+> **Última actualización**: 2026-05-17
 > **Versión**: 1.0 (consolidada tras auditoría Descripción + Historias de Usuario + Integrador.txt v5.0)
 > **Metodología**: Spec-Driven Development (SDD) sobre OpenSpec / OPSX
-> **Total de changes activos**: 25
+> **Total de changes activos**: 24
 > **Sprints estimados**: 8
 
 ---
@@ -59,35 +59,7 @@ Cuando el change está implementado y verificado, se **archiva**: las specs delt
 
 # Roadmap Consolidado
 
-## Sprint 0 — Fundaciones
-
-### Change 01 — `bootstrap-monorepo-structure`
-- **Objetivo**: Inicializar el monorepo con la estructura de carpetas backend (feature-first) y frontend (Feature-Sliced Design), `.gitignore`, `README.md` raíz y `.env.example` en ambos proyectos.
-- **Historias**: US-000
-- **Dependencias**: ninguna
-- **Notas críticas**: Convención **Conventional Commits**. CE-01, CE-02, CE-03 del checklist de entrega arrancan acá.
-
-### Change 02 — `backend-core-foundation`
-- **Objetivo**: Configurar FastAPI con dependencias core, módulo `core/` (config, database, security), middlewares (CORS con `CORSMiddleware`, slowapi, errores RFC 7807) y validación/sanitización global de inputs.
-- **Historias**: US-000a, US-068, US-074
-- **Dependencias**: Change 01
-- **Notas críticas**: Prefijo de routers `/api/v1`. Errores RFC 7807 con `{ detail, code, field? }`. Swagger en `/docs` y ReDoc en `/redoc` (CE-08).
-
----
-
 ## Sprint 1 — Identidad, Autorización y Navegación
-
-### Change 06 — `auth-register-login` *(ver archivado abajo)*
-
-### Change 07 — `auth-refresh-logout-rbac-me`
-- **Objetivo**: Cerrar el ciclo de sesión: rotación de refresh tokens con detección de replay, logout que revoca el refresh, RBAC (`require_role` aplicado a endpoints), `GET /api/v1/auth/me`, e interceptor frontend de renovación transparente con cola de requests concurrentes.
-- **Historias**: US-003, US-004, US-005, US-006, US-066
-- **Dependencias**: Change 06, Change 05
-- **Notas críticas**:
-  - Persistir **SHA-256** del refresh token, no el valor en claro.
-  - Detección de replay → revocar familia completa.
-  - Guarda "no degradar al último ADMIN" en gestión de roles.
-  - `/auth/me` es indispensable para que el `authStore` reconstruya el usuario al recargar (depende del `partialize` de Change 05).
 
 ### Change 08 — `frontend-navigation-route-guards`
 - **Objetivo**: Layout base, navegación adaptada al rol (CLIENT, STOCK, PEDIDOS, ADMIN, anónimo) y guards de ruta basados en `authStore`.
@@ -326,6 +298,21 @@ todos ────────────────────────�
 
 ## Ya realizado (archivado en OPSX)
 
+## Sprint 0 — Fundaciones
+
+### Change 01 — `bootstrap-monorepo-structure`
+- **Objetivo**: Inicializar el monorepo con la estructura de carpetas backend (feature-first) y frontend (Feature-Sliced Design), `.gitignore`, `README.md` raíz y `.env.example` en ambos proyectos.
+- **Historias**: US-000
+- **Dependencias**: ninguna
+- **Notas críticas**: Convención **Conventional Commits**. CE-01, CE-02, CE-03 del checklist de entrega arrancan acá.
+
+### Change 02 — `backend-core-foundation`
+- **Objetivo**: Configurar FastAPI con dependencias core, módulo `core/` (config, database, security), middlewares (CORS con `CORSMiddleware`, slowapi, errores RFC 7807) y validación/sanitización global de inputs.
+- **Historias**: US-000a, US-068, US-074
+- **Dependencias**: Change 01
+- **Notas críticas**: Prefijo de routers `/api/v1`. Errores RFC 7807 con `{ detail, code, field? }`. Swagger en `/docs` y ReDoc en `/redoc` (CE-08).
+
+
 ### Change 03 — `database-migrations-and-seed`
 - **Objetivo**: Definir el ERD v5 completo en SQLModel, generar migraciones Alembic reproducibles y reversibles e implementar el seed idempotente.
 - **Historias**: US-000b
@@ -381,6 +368,27 @@ todos ────────────────────────�
 - **Evidencia**: `openspec/changes/archive/2026-05-14-auth-register-login/`
 - **Specs sincronizadas**: 2 nuevas (`backend-auth-register-login`, `backend-auth-token-issuance`) + 5 actualizadas (`backend-api-v1-router`, `backend-auth-dependencies`, `frontend-auth-store`, `frontend-error-handling`, `frontend-routing`)
 - **Commits**: 4 (b9296cf, 6bc2d5d, 1f7e109, 459c4bb)
+
+## Sprint 1 — Identidad, Autorización y Navegación
+
+### Change 07 — `auth-refresh-logout-rbac-me`
+- **Objetivo**: Cerrar el ciclo de sesión: rotación de refresh tokens con detección de replay, logout que revoca el refresh, RBAC (`require_role` aplicado a endpoints), `GET /api/v1/auth/me`, e interceptor frontend de renovación transparente con cola de requests concurrentes.
+- **Historias**: US-003, US-004, US-005, US-006, US-066
+- **Dependencias**: Change 06, Change 05
+- **Notas críticas**:
+  - Persistir **SHA-256** del refresh token, no el valor en claro.
+  - Detección de replay → revocar familia completa (DEV-01 documentada: family-scoped en vez de all-tokens; RFC 6749 + multi-device UX).
+  - Patrón Opción A (D-07-C): router captura `TokenReplayError` → segundo `UnitOfWork()` independiente commitea `revoke_family` ANTES del rollback del UoW del service.
+  - `TokenReplayError` hereda directo de `Exception` (no de `AppError` ni `HTTPException`); prohibido registrar `@app.exception_handler` global.
+  - `/auth/me` es indispensable para que el `authStore` reconstruya el usuario al recargar (depende del `partialize` de Change 05).
+  - `AuthSync` usa `setUser()` atómico (no `login()`); `logout()` sync void.
+  - Interceptor con `refreshPromise` singleton + `failedQueue`; AUTH_LOGOUT en skip-list.
+  - Multi-tab sync vía native `storage` event con guard `isRefreshing()`.
+- **Estado**: ✅ Hecho (archivado 2026-05-17)
+- **Evidencia**: `openspec/changes/archive/2026-05-17-auth-refresh-logout-rbac-me/`
+- **Specs sincronizadas**: 4 nuevas (`backend-auth-logout`, `backend-auth-me`, `backend-auth-refresh-rotation`, `frontend-auth-rehydration`) + 4 actualizadas (`frontend-auth-store`, `frontend-http-client`, `backend-auth-register-login`, `backend-auth-token-issuance`)
+- **Tests**: 277 passing (188 backend + 89 frontend), coverage 93%
+- **Auditoría post-apply**: blind audit READY TO ARCHIVE (8/8 constraints críticos PASS, 0 violations)
 
 ---
 

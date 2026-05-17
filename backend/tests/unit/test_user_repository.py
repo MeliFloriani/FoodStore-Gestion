@@ -49,10 +49,16 @@ def _make_rol(codigo: str = "TESTROLE") -> Rol:
 
 
 def _make_refresh_token(usuario_id: uuid.UUID, hours: int = 24) -> RefreshToken:
-    """Build an unsaved RefreshToken for testing."""
+    """Build an unsaved RefreshToken for testing.
+
+    Updated in Change 07 (auth-refresh-logout-rbac-me): family_id is now
+    required (NOT NULL). A new UUID is generated per call to simulate login
+    seeding a fresh family.
+    """
     return RefreshToken(
         token_hash="a" * 64,
         usuario_id=usuario_id,
+        family_id=uuid.uuid4(),
         expires_at=datetime.now(timezone.utc) + timedelta(hours=hours),
     )
 

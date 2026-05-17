@@ -1,7 +1,8 @@
 """
 Pydantic v2 schemas for the auth domain.
 
-Covers RegisterRequest, LoginRequest, UserRead, and TokenResponse.
+Covers RegisterRequest, LoginRequest, UserRead, TokenResponse,
+RefreshRequest, and LogoutRequest.
 
 Design decisions:
 - UserRead uses model_config = ConfigDict(from_attributes=True) to work with
@@ -10,11 +11,15 @@ Design decisions:
 - UserRead.usuario_roles is declared as a regular field (read from ORM via from_attributes)
   but excluded from serialization output via Field(exclude=True).
 - UserRead.roles is a @computed_field that reads the usuario_roles relationship.
+- UserRead.created_at is required per Integrador §6.1 (UserResponse includes created_at).
 - TokenResponse.expires_in defaults to 1800 (30 minutes), matching ACCESS_TOKEN_EXPIRE_MINUTES.
+- RefreshRequest: body for POST /auth/refresh (Change 07).
+- LogoutRequest: body for POST /auth/logout (Change 07).
 """
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -37,12 +42,32 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RefreshRequest(BaseModel):
+    """Request body for POST /api/v1/auth/refresh.
+
+    Added in Change 07 (auth-refresh-logout-rbac-me).
+    """
+
+    refresh_token: str
+
+
+class LogoutRequest(BaseModel):
+    """Request body for POST /api/v1/auth/logout.
+
+    Added in Change 07 (auth-refresh-logout-rbac-me).
+    Bearer access token is NOT required — the logout is keyed on refresh_token.
+    """
+
+    refresh_token: str
+
+
 class UserRead(BaseModel):
     """Response body for a registered/authenticated user.
 
     Reads ORM attributes from a Usuario instance via from_attributes=True.
     usuario_roles is read from the ORM relationship but excluded from the output;
     the roles @computed_field produces the flat list of role codes instead.
+    created_at is included per Integrador §6.1 (UserResponse shape).
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -51,6 +76,7 @@ class UserRead(BaseModel):
     nombre: str
     apellido: str
     email: str
+    created_at: datetime
     # Read the relationship from ORM but exclude from JSON output.
     # The @computed_field 'roles' derives from this.
     usuario_roles: list[Any] = Field(default=[], exclude=True)
@@ -72,7 +98,7 @@ class UserRead(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    """Response body for POST /api/v1/auth/login."""
+    """Response body for POST /api/v1/auth/login and POST /api/v1/auth/refresh."""
 
     access_token: str
     refresh_token: str
