@@ -40,7 +40,7 @@ class Categoria(Base, table=True):
 
     __tablename__ = "categoria"
 
-    nombre: str = Field(max_length=100, nullable=False, unique=True)
+    nombre: str = Field(max_length=100, nullable=False)
     descripcion: Optional[str] = Field(default=None, nullable=True)
     # FK self-referencial nullable — D-22
     parent_id: Optional[uuid.UUID] = Field(

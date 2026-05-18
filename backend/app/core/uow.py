@@ -31,6 +31,7 @@ from app.core.logging import get_logger
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from app.repositories.categoria import CategoriaRepository
     from app.repositories.user import (
         RefreshTokenRepository,
         RolRepository,
@@ -70,6 +71,7 @@ class UnitOfWork:
         self._roles: RolRepository | None = None
         self._usuario_roles: UsuarioRolRepository | None = None
         self._refresh_tokens: RefreshTokenRepository | None = None
+        self._categorias: CategoriaRepository | None = None
 
     async def __aenter__(self) -> UnitOfWork:
         """Open a new AsyncSession via get_session_factory() and return self.
@@ -85,6 +87,7 @@ class UnitOfWork:
         self._roles = None
         self._usuario_roles = None
         self._refresh_tokens = None
+        self._categorias = None
         logger.debug("uow.begin", session_id=id(self._session))
         return self
 
@@ -216,15 +219,21 @@ class UnitOfWork:
         )
 
     @property
-    def categorias(self) -> NoReturn:
-        """Stub: CategoriaRepository not yet implemented.
+    def categorias(self) -> "CategoriaRepository":
+        """Lazy accessor for CategoriaRepository, bound to the current session.
 
-        # TODO(change-09): implement CategoriaRepository and wire here.
+        Implemented in Change 09 (catalog-categories-management).
+        Follows the same lazy @property pattern as uow.usuarios, uow.roles, etc.
         """
-        raise NotImplementedError(
-            "uow.categorias not implemented"
-            " — see Change 09 (catalog-categories-management)"
-        )
+        if self._session is None:
+            raise RuntimeError(
+                "UnitOfWork.categorias accessed outside of async context manager."
+            )
+        if self._categorias is None:
+            from app.repositories.categoria import CategoriaRepository
+
+            self._categorias = CategoriaRepository(self._session)
+        return self._categorias
 
     @property
     def ingredientes(self) -> NoReturn:

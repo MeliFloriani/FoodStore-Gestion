@@ -57,6 +57,7 @@ def make_uow_override(
         uow._roles = None  # noqa: SLF001
         uow._usuario_roles = None  # noqa: SLF001
         uow._refresh_tokens = None  # noqa: SLF001
+        uow._categorias = None  # noqa: SLF001 — Change 09
         try:
             yield uow
         finally:

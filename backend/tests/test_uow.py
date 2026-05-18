@@ -119,12 +119,14 @@ async def test_uow_stub_productos_raises(async_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_uow_stub_categorias_raises(async_session: AsyncSession) -> None:
-    """uow.categorias raises NotImplementedError."""
+async def test_uow_categorias_returns_categoria_repository(async_session: AsyncSession) -> None:
+    """uow.categorias returns a CategoriaRepository instance (Change 09 — wired)."""
+    from app.repositories.categoria import CategoriaRepository
+
     uow = UnitOfWork()
     uow._session = async_session
-    with pytest.raises(NotImplementedError):
-        _ = uow.categorias
+    uow._categorias = None
+    assert isinstance(uow.categorias, CategoriaRepository)
 
 
 @pytest.mark.asyncio

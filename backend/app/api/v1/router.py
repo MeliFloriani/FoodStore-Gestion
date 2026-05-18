@@ -60,4 +60,9 @@ def build_v1_router(settings: Settings) -> APIRouter:
 
     router.include_router(auth_router)
 
+    # --- Catalog: Categories (Change 09 — catalog-categories-management) ---
+    from app.api.v1.categorias import categorias_router  # noqa: PLC0415 — lazy import inside factory
+
+    router.include_router(categorias_router, prefix="/categorias", tags=["categorias"])
+
     return router
