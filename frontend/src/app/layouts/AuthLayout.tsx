@@ -1,8 +1,11 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/entities/auth/model/store'
+import { resolveDefaultRoute } from '@/shared/lib/navigation'
 
 export function AuthLayout() {
-  const status = useAuthStore((s) => s.status)
+  const status = useAuthStore(s => s.status)
+  const user = useAuthStore(s => s.user)
+  const location = useLocation()
 
   if (status === 'idle' || status === 'authenticating') {
     return (
@@ -17,7 +20,9 @@ export function AuthLayout() {
   }
 
   if (status === 'authenticated') {
-    return <Navigate to="/" replace />
+    const from = (location.state as { from?: string } | null)?.from
+    const target = from ?? resolveDefaultRoute(user?.roles ?? [])
+    return <Navigate to={target} replace />
   }
 
   return <Outlet />

@@ -21,6 +21,7 @@ function renderAuthLayout() {
           <Route path="/login" element={<div>Login Content</div>} />
         </Route>
         <Route path="/" element={<div>Home Page</div>} />
+        <Route path="/catalog" element={<div>Catalog Page</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -52,10 +53,10 @@ describe('AuthLayout', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('redirects to / when authenticated', () => {
+  it('redirects to /catalog when authenticated as CLIENT', () => {
     useAuthStore.getState().login('token', 'refresh', mockUser)
     renderAuthLayout()
-    expect(screen.getByText('Home Page')).toBeInTheDocument()
+    expect(screen.getByText('Catalog Page')).toBeInTheDocument()
     expect(screen.queryByText('Login Content')).not.toBeInTheDocument()
   })
 })

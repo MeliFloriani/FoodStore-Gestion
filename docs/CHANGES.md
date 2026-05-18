@@ -1,6 +1,6 @@
 # Changes — Roadmap Consolidado de Food Store
 
-> **Última actualización**: 2026-05-17
+> **Última actualización**: 2026-05-18
 > **Versión**: 1.0 (consolidada tras auditoría Descripción + Historias de Usuario + Integrador.txt v5.0)
 > **Metodología**: Spec-Driven Development (SDD) sobre OpenSpec / OPSX
 > **Total de changes activos**: 24
@@ -58,16 +58,6 @@ Cuando el change está implementado y verificado, se **archiva**: las specs delt
 ---
 
 # Roadmap Consolidado
-
-## Sprint 1 — Identidad, Autorización y Navegación
-
-### Change 08 — `frontend-navigation-route-guards`
-- **Objetivo**: Layout base, navegación adaptada al rol (CLIENT, STOCK, PEDIDOS, ADMIN, anónimo) y guards de ruta basados en `authStore`.
-- **Historias**: US-075, US-076
-- **Dependencias**: Change 07
-- **Notas críticas**: Lazy loading por rol; HOC `withAuth(Component, requiredRoles)`.
-
----
 
 ## Sprint 2 — Catálogo I (Categorías e Ingredientes)
 
@@ -389,6 +379,29 @@ todos ────────────────────────�
 - **Specs sincronizadas**: 4 nuevas (`backend-auth-logout`, `backend-auth-me`, `backend-auth-refresh-rotation`, `frontend-auth-rehydration`) + 4 actualizadas (`frontend-auth-store`, `frontend-http-client`, `backend-auth-register-login`, `backend-auth-token-issuance`)
 - **Tests**: 277 passing (188 backend + 89 frontend), coverage 93%
 - **Auditoría post-apply**: blind audit READY TO ARCHIVE (8/8 constraints críticos PASS, 0 violations)
+
+### Change 08 — `frontend-navigation-route-guards`
+- **Objetivo**: Layout base, navegación adaptada al rol (CLIENT, STOCK, PEDIDOS, ADMIN, anónimo) y guards de ruta basados en `authStore`.
+- **Historias**: US-075, US-076
+- **Dependencias**: Change 07
+- **Notas críticas**:
+  - Route tree 3 ramas: public (PublicLayout) / auth (AuthLayout) / private (ProtectedRoute→AppLayout).
+  - `RoleGuard` real (reemplazó stub) vía `useRequireRoles(roles)` hook.
+  - `withAuth(Component, requiredRoles)` HOC desacoplado del route tree.
+  - Invariante D-08: guard-before-Suspense — `RoleGuard` fuera del boundary de `React.Suspense` (chunks restringidos no se descargan).
+  - `/catalog` movido a rama pública (accesible sin auth — Integrador §5.2).
+  - URLs role-namespaced: `/stock/*` (STOCK+ADMIN), `/pedidos-panel/*` (PEDIDOS+ADMIN).
+  - `resolveDefaultRoute(roles)` centralizado: ADMIN→`/admin`, PEDIDOS→`/pedidos-panel`, STOCK→`/stock/products`, CLIENT→`/catalog`.
+  - Regla multi-rol: menú = UNIÓN de items de todos los roles del usuario (de-duplicado por path).
+  - `adminOnly` eliminado — único mecanismo: `allowedRoles: ['ADMIN']`.
+  - Placeholder pages: `/profile` (Change 13), `/addresses` (Change 14), `/stock/*` (Change 11), `/pedidos-panel/*` (Change 18).
+  - Error pages: `/401` UnauthorizedPage, `/403` ForbiddenPage, `/404` NotFoundPage.
+  - Gotcha crítico: `useAuthStore(s => s.user?.roles ?? [])` causa infinite re-renders en Vitest — solución: leer `user` entero y derivar `roles` fuera del selector.
+- **Estado**: ✅ Hecho (archivado 2026-05-18)
+- **Evidencia**: `openspec/changes/archive/2026-05-18-frontend-navigation-route-guards/`
+- **Specs sincronizadas**: 1 actualizada (`frontend-routing`) + 4 nuevas (`frontend-navigation`, `frontend-route-guards`, `frontend-layouts`, `frontend-error-pages`)
+- **Tests**: 141 passing (52 nuevos + 89 pre-existentes), 19 test files, 0 TypeScript errors
+- **Auditoría**: 2 rondas blind audit → READY WITH FIXES → micro-fixes → GO. 3 BLOCKERs + 3 HIGH resueltos.
 
 ---
 
