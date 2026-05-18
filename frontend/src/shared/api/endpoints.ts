@@ -7,3 +7,6 @@ export const AUTH_REFRESH = '/auth/refresh' as const
 export const AUTH_ME = '/auth/me' as const
 export const AUTH_REGISTER = '/auth/register' as const
 export const AUTH_LOGOUT = '/auth/logout' as const
+
+// Catalog — Categories (Change 09)
+export const CATEGORIAS = '/api/v1/categorias' as const

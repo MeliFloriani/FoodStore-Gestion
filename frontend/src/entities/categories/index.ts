@@ -1,0 +1,8 @@
+/**
+ * Public API for the categories entity (FSD entity layer).
+ *
+ * Re-exports types and hooks for consumers in higher layers
+ * (pages, features, widgets).
+ */
+export type { Categoria, CategoriaTreeNode } from './model/types'
+export { useCategoriesTree } from './model/useCategoriesTree'
