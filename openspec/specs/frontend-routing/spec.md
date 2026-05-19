@@ -49,7 +49,7 @@ The router SHALL define routes organized in three top-level branches under `Root
 - `/cart` → `RoleGuard roles={['CLIENT','ADMIN']}` → `CartPage` (lazy)
 - `/checkout` → `RoleGuard roles={['CLIENT','ADMIN']}` → `CheckoutPage` (lazy)
 - `/orders` → `RoleGuard roles={['CLIENT','ADMIN']}` → `OrdersPage` (lazy)
-- `/profile` → `RoleGuard roles={['CLIENT','ADMIN']}` → ProfilePage (placeholder, implemented in Change 13)
+- `/profile` → `RoleGuard roles={['CLIENT','ADMIN']}` → `ProfilePage` (lazy, from `src/pages/ProfilePage/` — composes `EditProfileForm` and `ChangePasswordForm` from `src/features/profile/`)
 - `/addresses` → `RoleGuard roles={['CLIENT','ADMIN']}` → AddressesPage (placeholder, implemented in Change 14)
 - `/stock/*` → `RoleGuard roles={['STOCK','ADMIN']}` → stock subtree placeholder (lazy)
 - `/pedidos-panel/*` → `RoleGuard roles={['PEDIDOS','ADMIN']}` → pedidos subtree placeholder (lazy)
@@ -76,6 +76,20 @@ The router SHALL define routes organized in three top-level branches under `Root
 #### Scenario: All placeholder routes render without crashing
 - **WHEN** any registered route is navigated to with appropriate auth/role state
 - **THEN** the page renders without a runtime error or uncaught exception
+
+#### Scenario: CLIENT navigates to /profile and sees real ProfilePage
+- **WHEN** an authenticated user with roles `['CLIENT']` navigates to `/profile`
+- **THEN** the real `ProfilePage` component renders (not a placeholder)
+- **THEN** the page shows the user's profile data and the two profile management forms (`EditProfileForm`, `ChangePasswordForm`)
+
+#### Scenario: ADMIN navigates to /profile and sees real ProfilePage
+- **WHEN** an authenticated user with roles `['ADMIN']` navigates to `/profile`
+- **THEN** the real `ProfilePage` component renders
+- **THEN** both profile management forms are visible
+
+#### Scenario: Unauthenticated user is still blocked from /profile
+- **WHEN** a user with `status: 'unauthenticated'` navigates to `/profile`
+- **THEN** `ProtectedRoute` redirects to `/login` (behavior unchanged from Change 08)
 
 ## Acceptance
 

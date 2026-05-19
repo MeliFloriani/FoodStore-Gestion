@@ -23,6 +23,14 @@ export type {
   DisponibilidadUpdatePayload,
   AsociarIngredientePayload,
   ProductoListFilters,
+  // Public catalog types (Change 12)
+  ProductoPublicoRead,
+  ProductoPublicoDetalleRead,
+  CategoriaPublicaRead,
+  IngredientePublicoRead,
+  IngredienteAlergenicoListResponse,
+  CatalogFilters,
+  PaginatedCatalogProductos,
 } from './model/types'
 
 export { productQueryKeys } from './model/queryKeys'
@@ -55,4 +63,16 @@ export {
   listProductoIngredientes,
   asociarIngrediente,
   removerIngrediente,
+  // Public catalog fetchers (Change 12)
+  fetchCatalogProductos,
+  fetchCatalogProductoDetalle,
+  fetchCatalogAlergenos,
 } from './api/productoFetchers'
+
+// Public catalog hooks (Change 12)
+export {
+  useCatalogProducts,
+  useCatalogProduct,
+  useCatalogAlergenos,
+  catalogQueryKeys,
+} from './model/useCatalogProducts'

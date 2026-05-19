@@ -12,6 +12,7 @@ const LoginPage = lazy(() => import('@/pages/login/ui/LoginPage'))
 const RegisterPage = lazy(() => import('@/pages/register/ui/RegisterPage'))
 const HomePage = lazy(() => import('@/pages/home/ui/HomePage'))
 const CatalogPage = lazy(() => import('@/pages/catalog/ui/CatalogPage'))
+const ProductDetailPage = lazy(() => import('@/pages/catalog/ui/ProductDetailPage'))
 const CartPage = lazy(() => import('@/pages/cart/ui/CartPage'))
 const CheckoutPage = lazy(() => import('@/pages/checkout/ui/CheckoutPage'))
 const OrdersPage = lazy(() => import('@/pages/orders/ui/OrdersPage'))
@@ -19,7 +20,7 @@ const AdminPage = lazy(() => import('@/pages/admin/ui/AdminPage'))
 const ForbiddenPage = lazy(() => import('@/pages/errors/ForbiddenPage'))
 const UnauthorizedPage = lazy(() => import('@/pages/errors/UnauthorizedPage'))
 const NotFoundPage = lazy(() => import('@/pages/errors/NotFoundPage'))
-const ProfilePage = lazy(() => import('@/pages/profile/ui/ProfilePage'))
+const ProfilePage = lazy(() => import('@/pages/ProfilePage'))
 const AddressesPage = lazy(() => import('@/pages/addresses/ui/AddressesPage'))
 
 function PageLoader() {
@@ -48,6 +49,14 @@ export const router = createBrowserRouter([
             element: (
               <Suspense fallback={<PageLoader />}>
                 <CatalogPage />
+              </Suspense>
+            ),
+          },
+          {
+            path: '/catalog/:id',
+            element: (
+              <Suspense fallback={<PageLoader />}>
+                <ProductDetailPage />
               </Suspense>
             ),
           },

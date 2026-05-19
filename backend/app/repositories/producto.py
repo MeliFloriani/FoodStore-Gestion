@@ -25,8 +25,9 @@ from __future__ import annotations
 
 import math
 import uuid
+from typing import TYPE_CHECKING
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, exists, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -36,6 +37,9 @@ from app.models.catalog import (
     ProductoIngrediente,
 )
 from app.repositories.base import BaseRepository
+
+if TYPE_CHECKING:
+    from app.schemas.catalog_public import CatalogProductosQuery
 
 
 class ProductoRepository(BaseRepository[Producto]):
@@ -269,6 +273,131 @@ class ProductoRepository(BaseRepository[Producto]):
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    # =========================================================================
+    # Public catalog methods (Change 12 — catalog-public-browsing)
+    # =========================================================================
+
+    def _apply_public_visibility(self, stmt):  # type: ignore[return]
+        """Append WHERE disponible=true AND deleted_at IS NULL to a select statement.
+
+        This is the single gate between the full product set and what public
+        users can see. Both list_public() and get_public_by_id() MUST call this.
+
+        Args:
+            stmt: A SQLAlchemy Select statement.
+
+        Returns:
+            The statement with the public visibility filter applied.
+        """
+        return stmt.where(
+            Producto.disponible.is_(True),  # type: ignore[union-attr]
+            Producto.deleted_at.is_(None),  # type: ignore[union-attr]
+        )
+
+    async def list_public(
+        self,
+        filters: "CatalogProductosQuery",
+        parsed_alergenos: list[uuid.UUID] | None = None,
+    ) -> tuple[list[Producto], int]:
+        """Return (items, total) for public catalog listing.
+
+        Applies public visibility rule (disponible=true AND deleted_at IS NULL)
+        plus all composable filters. Fires exactly 2 SQL statements: 1 COUNT + 1 SELECT.
+        Does NOT load categorias or ingredientes — ProductoPublicoRead list schema
+        does not include relations.
+
+        Args:
+            filters: CatalogProductosQuery with page, size, categoria_id, q, ordenar.
+            parsed_alergenos: Pre-parsed list of allergen ingredient UUIDs from the service.
+                              If provided and non-empty, applies NOT EXISTS filter.
+
+        Returns:
+            Tuple of (list of Producto, total count).
+        """
+        # Base stmt — apply public visibility always
+        stmt = self._apply_public_visibility(select(Producto))
+        count_stmt = self._apply_public_visibility(
+            select(func.count()).select_from(Producto)
+        )
+
+        # Filter by categoria_id via JOIN
+        if filters.categoria_id is not None:
+            stmt = stmt.join(
+                ProductoCategoria,
+                ProductoCategoria.producto_id == Producto.id,
+            ).where(ProductoCategoria.categoria_id == filters.categoria_id)
+            count_stmt = count_stmt.join(
+                ProductoCategoria,
+                ProductoCategoria.producto_id == Producto.id,
+            ).where(ProductoCategoria.categoria_id == filters.categoria_id)
+
+        # Filter by q (ILIKE '%q%' on nombre)
+        if filters.q is not None:
+            pattern = f"%{filters.q}%"
+            stmt = stmt.where(Producto.nombre.ilike(pattern))  # type: ignore[union-attr]
+            count_stmt = count_stmt.where(Producto.nombre.ilike(pattern))  # type: ignore[union-attr]
+
+        # Filter by excluir_alergenos: NOT EXISTS sub-query
+        if parsed_alergenos:
+            not_exists_subq = ~exists().where(
+                ProductoIngrediente.producto_id == Producto.id,
+                ProductoIngrediente.ingrediente_id.in_(parsed_alergenos),  # type: ignore[union-attr]
+            )
+            stmt = stmt.where(not_exists_subq)
+            count_stmt = count_stmt.where(not_exists_subq)
+
+        # ORDER BY — default: nombre ASC (alphabetical, user-friendly for catalog)
+        if filters.ordenar == "nombre":
+            stmt = stmt.order_by(Producto.nombre.asc())  # type: ignore[union-attr]
+        elif filters.ordenar == "-nombre":
+            stmt = stmt.order_by(Producto.nombre.desc())  # type: ignore[union-attr]
+        elif filters.ordenar == "precio":
+            stmt = stmt.order_by(Producto.precio_base.asc())  # type: ignore[union-attr]
+        elif filters.ordenar == "-precio":
+            stmt = stmt.order_by(Producto.precio_base.desc())  # type: ignore[union-attr]
+        else:
+            stmt = stmt.order_by(Producto.nombre.asc())  # type: ignore[union-attr]
+
+        # Execute count first
+        count_result = await self.session.execute(count_stmt)
+        total = int(count_result.scalar() or 0)
+
+        # Execute paginated data query (no selectinloads — list schema has no relations)
+        skip = (filters.page - 1) * filters.size
+        stmt = stmt.offset(skip).limit(filters.size)
+        result = await self.session.execute(stmt)
+        items = list(result.scalars().all())
+
+        return items, total
+
+    async def get_public_by_id(self, producto_id: uuid.UUID) -> Producto | None:
+        """Load a public product with M2M relationships.
+
+        Applies public visibility rule: only returns if disponible=true AND deleted_at IS NULL.
+        Loads categorias and ingredientes via selectinload (anti-N+1, max 3 queries).
+
+        Args:
+            producto_id: UUID of the product to load.
+
+        Returns:
+            Producto with relations loaded, or None if not found / hidden / soft-deleted.
+        """
+        stmt = (
+            self._apply_public_visibility(
+                select(Producto).where(Producto.id == producto_id)
+            )
+            .options(
+                selectinload(Producto.producto_categorias).selectinload(
+                    ProductoCategoria.categoria
+                ),
+                selectinload(Producto.producto_ingredientes).selectinload(
+                    ProductoIngrediente.ingrediente
+                ),
+            )
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().first()
 
     async def decrement_stock(
         self,

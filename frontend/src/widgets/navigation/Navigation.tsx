@@ -4,6 +4,7 @@ import { filterNavItems, NAVIGATION_ITEMS, ANONYMOUS_NAV_ITEMS } from '@/shared/
 
 type NavigationProps = { isPublic?: boolean }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Navigation({ isPublic: _isPublic }: NavigationProps) {
   const status = useAuthStore(s => s.status)
   // Read user directly to avoid creating a new array reference on each render

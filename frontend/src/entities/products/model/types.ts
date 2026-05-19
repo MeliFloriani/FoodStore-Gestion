@@ -96,3 +96,71 @@ export interface ProductoListFilters {
   disponible?: boolean | null
   search?: string | null
 }
+
+// ── Public catalog types (Change 12: catalog-public-browsing) ────────────────
+
+/** Public product read response (from GET /api/v1/catalog/productos).
+ *
+ * Does NOT contain stock_cantidad — only the boolean tiene_stock.
+ * Does NOT contain created_at, updated_at, deleted_at.
+ */
+export interface ProductoPublicoRead {
+  id: string
+  nombre: string
+  descripcion: string | null
+  imagen_url: string | null
+  precio_base: string // Decimal serialized as string
+  disponible: boolean
+  tiene_stock: boolean // NEVER stock_cantidad — public-safe boolean
+}
+
+/** Public category read (nested inside ProductoPublicoDetalleRead). */
+export interface CategoriaPublicaRead {
+  id: string
+  nombre: string
+}
+
+/** Public ingredient read (nested inside ProductoPublicoDetalleRead).
+ *
+ * Uses ingrediente_id (not id) to avoid ambiguity with the product id.
+ * es_removible is intentionally absent (admin-only detail).
+ */
+export interface IngredientePublicoRead {
+  ingrediente_id: string
+  nombre: string
+  es_alergeno: boolean
+}
+
+/** Public product detail response (from GET /api/v1/catalog/productos/{id}).
+ *
+ * Extends ProductoPublicoRead with M2M associations.
+ */
+export interface ProductoPublicoDetalleRead extends ProductoPublicoRead {
+  categorias: CategoriaPublicaRead[]
+  ingredientes: IngredientePublicoRead[]
+}
+
+/** Filters for the public catalog listing. Serialized as URL search params. */
+export interface CatalogFilters {
+  page?: number
+  size?: number
+  categoria_id?: string | null
+  q?: string | null
+  excluir_alergenos?: string | null // comma-separated positive integer IDs
+  ordenar?: string | null
+}
+
+/** Paginated response for GET /api/v1/catalog/productos. */
+export interface PaginatedCatalogProductos {
+  items: ProductoPublicoRead[]
+  total: number
+  page: number
+  size: number
+  pages: number
+}
+
+/** Response for GET /api/v1/catalog/ingredientes-alergenos. */
+export interface IngredienteAlergenicoListResponse {
+  items: IngredientePublicoRead[]
+  total: number
+}

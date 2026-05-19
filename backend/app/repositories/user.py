@@ -238,6 +238,36 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
         await self.session.flush()
         return result.rowcount  # type: ignore[return-value]
 
+    async def revoke_all_for_user(self, user_id: uuid.UUID) -> int:
+        """Revoke all active RefreshTokens for the given user.
+
+        Sets revoked_at = now_utc() on ALL rows WHERE usuario_id == user_id
+        AND revoked_at IS NULL. Used by change_password to invalidate every
+        active session atomically within the same UnitOfWork.
+
+        Different from revoke_family (family-scoped): this revokes across ALL
+        families, implementing US-063 AC ("all existing refresh tokens are
+        invalidated on password change").
+
+        Args:
+            user_id: The UUID of the user whose tokens should be revoked.
+
+        Returns:
+            The count of rows that were revoked (0 if no active tokens exist).
+        """
+        now_utc = datetime.now(timezone.utc)
+        result = await self.session.execute(
+            update(RefreshToken)
+            .where(
+                RefreshToken.usuario_id == user_id,
+                RefreshToken.revoked_at.is_(None),
+            )
+            .values(revoked_at=now_utc)
+            .execution_options(synchronize_session="fetch")
+        )
+        await self.session.flush()
+        return result.rowcount  # type: ignore[return-value]
+
     async def revoke_by_hash(self, token_hash: str) -> bool:
         """Set revoked_at on the RefreshToken identified by token_hash.
 

@@ -70,3 +70,21 @@ class IngredienteRepository(BaseRepository[Ingrediente]):
 
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_public_alergenos(self) -> list[Ingrediente]:
+        """Return all active allergen ingredients ordered by nombre ASC.
+
+        Used by the public catalog endpoint GET /api/v1/catalog/ingredientes-alergenos.
+        Filters: es_alergeno=true AND deleted_at IS NULL. Ordered by nombre ASC.
+
+        Returns:
+            List of active Ingrediente instances where es_alergeno=true.
+        """
+        stmt = (
+            select(Ingrediente)
+            .where(self._active_filter())
+            .where(Ingrediente.es_alergeno.is_(True))  # type: ignore[union-attr]
+            .order_by(Ingrediente.nombre.asc())  # type: ignore[union-attr]
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())

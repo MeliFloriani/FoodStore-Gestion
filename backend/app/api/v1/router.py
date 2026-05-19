@@ -75,4 +75,14 @@ def build_v1_router(settings: Settings) -> APIRouter:
 
     router.include_router(productos_router, prefix="/productos", tags=["productos"])
 
+    # --- Public Catalog (Change 12 — catalog-public-browsing) ---
+    from app.api.v1.catalog import catalog_router  # noqa: PLC0415 — lazy import inside factory
+
+    router.include_router(catalog_router, prefix="/catalog", tags=["catalog"])
+
+    # --- Profile (Change 13 — customer-profile-management) ---
+    from app.api.v1.profile import profile_router  # noqa: PLC0415 — lazy import inside factory
+
+    router.include_router(profile_router, prefix="/profile", tags=["profile"])
+
     return router

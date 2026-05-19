@@ -10,7 +10,7 @@
  */
 
 import { http } from '@/shared/api/http'
-import { PRODUCTOS } from '@/shared/api/endpoints'
+import { PRODUCTOS, CATALOG_PRODUCTOS, CATALOG_ALERGENOS } from '@/shared/api/endpoints'
 import type {
   PaginatedProductos,
   ProductoDetail,
@@ -20,6 +20,10 @@ import type {
   ProductoUpdatePayload,
   DisponibilidadUpdatePayload,
   AsociarIngredientePayload,
+  CatalogFilters,
+  PaginatedCatalogProductos,
+  ProductoPublicoDetalleRead,
+  IngredienteAlergenicoListResponse,
 } from '../model/types'
 
 /** List products with optional filters and pagination. */
@@ -100,4 +104,36 @@ export async function removerIngrediente(
   ingredienteId: string,
 ): Promise<void> {
   await http.delete(`${PRODUCTOS}/${productoId}/ingredientes/${ingredienteId}`)
+}
+
+// ── Public catalog fetchers (Change 12) ──────────────────────────────────────
+
+/** List public catalog products with optional filters (no auth required). */
+export async function fetchCatalogProductos(
+  filters: CatalogFilters,
+): Promise<PaginatedCatalogProductos> {
+  // Omit null/undefined values from params
+  const params = Object.fromEntries(
+    Object.entries(filters).filter(([, v]) => v != null),
+  )
+  const { data } = await http.get<PaginatedCatalogProductos>(CATALOG_PRODUCTOS, {
+    params,
+  })
+  return data
+}
+
+/** Get a single public product detail by UUID (no auth required). */
+export async function fetchCatalogProductoDetalle(
+  id: string,
+): Promise<ProductoPublicoDetalleRead> {
+  const { data } = await http.get<ProductoPublicoDetalleRead>(
+    `${CATALOG_PRODUCTOS}/${id}`,
+  )
+  return data
+}
+
+/** Get the public allergen ingredient list (no auth required). */
+export async function fetchCatalogAlergenos(): Promise<IngredienteAlergenicoListResponse> {
+  const { data } = await http.get<IngredienteAlergenicoListResponse>(CATALOG_ALERGENOS)
+  return data
 }
