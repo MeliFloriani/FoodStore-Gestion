@@ -110,12 +110,14 @@ def test_uow_usuarios_accessed_before_enter_raises() -> None:
 
 
 @pytest.mark.asyncio
-async def test_uow_stub_productos_raises(async_session: AsyncSession) -> None:
-    """uow.productos raises NotImplementedError (deferred to Change 09)."""
+async def test_uow_productos_returns_producto_repository(async_session: AsyncSession) -> None:
+    """uow.productos returns a ProductoRepository instance (Change 11 — wired)."""
+    from app.repositories.producto import ProductoRepository
+
     uow = UnitOfWork()
     uow._session = async_session
-    with pytest.raises(NotImplementedError):
-        _ = uow.productos
+    uow._productos = None
+    assert isinstance(uow.productos, ProductoRepository)
 
 
 @pytest.mark.asyncio

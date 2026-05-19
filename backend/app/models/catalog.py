@@ -144,7 +144,11 @@ class Ingrediente(Base, table=True):
 
     __tablename__ = "ingrediente"
 
-    nombre: str = Field(max_length=100, nullable=False, unique=True)
+    # unique=False — uniqueness enforced by partial index ix_ingrediente_nombre_activo
+    # (migration 0004). The global uq_ingrediente_nombre constraint from migration 0001
+    # is replaced by a partial unique index WHERE deleted_at IS NULL so that soft-deleted
+    # ingredient names can be reused (D-02).
+    nombre: str = Field(max_length=100, nullable=False, unique=False)
     es_alergeno: bool = Field(default=False, nullable=False)
 
     # Relationships

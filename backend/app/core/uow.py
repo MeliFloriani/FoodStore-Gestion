@@ -32,6 +32,8 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.repositories.categoria import CategoriaRepository
+    from app.repositories.ingrediente import IngredienteRepository  # 6.1a — Change 10
+    from app.repositories.producto import ProductoRepository  # Change 11
     from app.repositories.user import (
         RefreshTokenRepository,
         RolRepository,
@@ -72,6 +74,8 @@ class UnitOfWork:
         self._usuario_roles: UsuarioRolRepository | None = None
         self._refresh_tokens: RefreshTokenRepository | None = None
         self._categorias: CategoriaRepository | None = None
+        self._ingredientes: IngredienteRepository | None = None  # 6.1b — Change 10
+        self._productos: ProductoRepository | None = None  # Change 11
 
     async def __aenter__(self) -> UnitOfWork:
         """Open a new AsyncSession via get_session_factory() and return self.
@@ -88,6 +92,8 @@ class UnitOfWork:
         self._usuario_roles = None
         self._refresh_tokens = None
         self._categorias = None
+        self._ingredientes = None  # 6.1c — Change 10
+        self._productos = None  # Change 11
         logger.debug("uow.begin", session_id=id(self._session))
         return self
 
@@ -208,15 +214,21 @@ class UnitOfWork:
     # -------------------------------------------------------------------------
 
     @property
-    def productos(self) -> NoReturn:
-        """Stub: ProductoRepository not yet implemented.
+    def productos(self) -> "ProductoRepository":
+        """Lazy accessor for ProductoRepository, bound to the current session.
 
-        # TODO(change-09): implement ProductoRepository and wire here.
+        Implemented in Change 11 (catalog-products-management).
+        Follows the same lazy @property pattern as uow.categorias and uow.ingredientes.
         """
-        raise NotImplementedError(
-            "uow.productos not implemented"
-            " — see Change 09 (catalog-categories-management)"
-        )
+        if self._session is None:
+            raise RuntimeError(
+                "UnitOfWork.productos accessed outside of async context manager."
+            )
+        if self._productos is None:
+            from app.repositories.producto import ProductoRepository
+
+            self._productos = ProductoRepository(self._session)
+        return self._productos
 
     @property
     def categorias(self) -> "CategoriaRepository":
@@ -236,15 +248,21 @@ class UnitOfWork:
         return self._categorias
 
     @property
-    def ingredientes(self) -> NoReturn:
-        """Stub: IngredienteRepository not yet implemented.
+    def ingredientes(self) -> "IngredienteRepository":
+        """Lazy accessor for IngredienteRepository, bound to the current session.
 
-        # TODO(change-10): implement IngredienteRepository and wire here.
+        Implemented in Change 10 (catalog-ingredients-management).
+        Follows the same lazy @property pattern as uow.categorias.
         """
-        raise NotImplementedError(
-            "uow.ingredientes not implemented"
-            " — see Change 10 (catalog-ingredients-management)"
-        )
+        if self._session is None:
+            raise RuntimeError(
+                "UnitOfWork.ingredientes accessed outside of async context manager."
+            )
+        if self._ingredientes is None:
+            from app.repositories.ingrediente import IngredienteRepository
+
+            self._ingredientes = IngredienteRepository(self._session)
+        return self._ingredientes
 
     @property
     def pedidos(self) -> NoReturn:

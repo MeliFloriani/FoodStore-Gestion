@@ -65,4 +65,14 @@ def build_v1_router(settings: Settings) -> APIRouter:
 
     router.include_router(categorias_router, prefix="/categorias", tags=["categorias"])
 
+    # --- Catalog: Ingredients (Change 10 — catalog-ingredients-management) ---
+    from app.api.v1.ingredientes import ingredientes_router  # noqa: PLC0415 — lazy import inside factory
+
+    router.include_router(ingredientes_router, prefix="/ingredientes", tags=["ingredientes"])
+
+    # --- Catalog: Products (Change 11 — catalog-products-management) ---
+    from app.api.v1.productos import productos_router  # noqa: PLC0415 — lazy import inside factory
+
+    router.include_router(productos_router, prefix="/productos", tags=["productos"])
+
     return router

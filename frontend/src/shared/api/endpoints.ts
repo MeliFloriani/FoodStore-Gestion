@@ -10,3 +10,9 @@ export const AUTH_LOGOUT = '/auth/logout' as const
 
 // Catalog — Categories (Change 09)
 export const CATEGORIAS = '/api/v1/categorias' as const
+
+// Catalog — Ingredients (Change 10)
+export const INGREDIENTES = '/api/v1/ingredientes' as const
+
+// Catalog — Products (Change 11)
+export const PRODUCTOS = '/api/v1/productos' as const
