@@ -159,3 +159,21 @@ The existing `POST /api/v1/auth/login` requirement from Change 06 is extended: w
 - **WHEN** `uow.roles.get_by_codigo("NONEXISTENT")` is called
 - **THEN** `None` is returned without raising any exception
 
+## ADDED Requirements (Change 21: admin-users-management)
+
+### Requirement: Login blocks soft-deleted users (deleted_at IS NOT NULL)
+
+`POST /api/v1/auth/login` SHALL reject login attempts from users who have been soft-deleted (`deleted_at IS NOT NULL`). The `get_by_email` method already filters out soft-deleted users (`WHERE deleted_at IS NULL`), so a soft-deleted user's email effectively does not exist from the login flow's perspective.
+
+The response MUST be identical to the "invalid credentials" response — no information about the account's existence or deactivation state is disclosed (enumeration protection).
+
+#### Scenario: Deactivated user cannot log in
+- **WHEN** `POST /api/v1/auth/login` is called with credentials of a user where `deleted_at IS NOT NULL`
+- **THEN** HTTP 401 is returned
+- **THEN** the response body is `{ "detail": "Invalid credentials", "code": "invalid_credentials" }`
+- **THEN** the response is indistinguishable from a non-existent email response (no enumeration)
+
+#### Scenario: Reactivated user can log in again
+- **WHEN** a user's `deleted_at` is reset to `NULL` (reactivated via `PATCH /api/v1/admin/usuarios/{id}/estado` with `activo=true`)
+- **THEN** `POST /api/v1/auth/login` with that user's credentials returns HTTP 200
+

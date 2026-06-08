@@ -78,6 +78,11 @@ export const useAuthStore = create<AuthStore>()(
       onRehydrateStorage: () => (state) => {
         if (state?.accessToken) {
           state.status = 'authenticating'
+        } else if (state) {
+          // No persisted token → never authenticated. Mark as
+          // 'unauthenticated' so AuthLayout / ProtectedRoute can render
+          // their final states instead of an infinite 'idle' spinner.
+          state.status = 'unauthenticated'
         }
       },
     },

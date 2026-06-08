@@ -132,12 +132,25 @@ async def test_uow_categorias_returns_categoria_repository(async_session: AsyncS
 
 
 @pytest.mark.asyncio
-async def test_uow_stub_pedidos_raises(async_session: AsyncSession) -> None:
-    """uow.pedidos raises NotImplementedError."""
+async def test_uow_pedidos_returns_pedido_repository(async_session: AsyncSession) -> None:
+    """uow.pedidos returns a PedidoRepository instance (Change 17 — wired)."""
+    from app.repositories.pedido import PedidoRepository
+
     uow = UnitOfWork()
     uow._session = async_session
-    with pytest.raises(NotImplementedError):
-        _ = uow.pedidos
+    uow._pedidos = None
+    assert isinstance(uow.pedidos, PedidoRepository)
+
+
+@pytest.mark.asyncio
+async def test_uow_historial_pedido_returns_historial_repository(async_session: AsyncSession) -> None:
+    """uow.historial_pedido returns HistorialEstadoPedidoRepository (Change 18 — D-09)."""
+    from app.repositories.historial_estado import HistorialEstadoPedidoRepository
+
+    uow = UnitOfWork()
+    uow._session = async_session
+    uow._historial_pedido = None
+    assert isinstance(uow.historial_pedido, HistorialEstadoPedidoRepository)
 
 
 # ---------------------------------------------------------------------------

@@ -60,6 +60,11 @@ def make_uow_override(
         uow._categorias = None  # noqa: SLF001 — Change 09
         uow._ingredientes = None  # noqa: SLF001 — Change 10
         uow._productos = None  # noqa: SLF001 — Change 11
+        uow._direcciones_entrega = None  # noqa: SLF001 — Change 14
+        uow._pedidos = None  # noqa: SLF001 — Change 17
+        uow._historial_pedido = None  # noqa: SLF001 — Change 18
+        uow._pagos = None  # noqa: SLF001 — Change 19
+        uow._admin_usuarios = None  # noqa: SLF001 — Change 21
         try:
             yield uow
         finally:

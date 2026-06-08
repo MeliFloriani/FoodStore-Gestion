@@ -5,14 +5,16 @@ type PaymentStatus = 'idle' | 'pending' | 'approved' | 'rejected' | 'error'
 
 type PaymentState = {
   checkoutStep: CheckoutStep
-  pedidoId: number | null
+  // Change 19: pedidoId is a UUID string (was number in Change 17 placeholder)
+  pedidoId: string | null
   preferenceId: string | null
   status: PaymentStatus
   lastErrorCode: string | null
 }
 
 type PaymentActions = {
-  startCheckout: (pedidoId: number) => void
+  // Change 19: pedidoId is UUID string (was number)
+  startCheckout: (pedidoId: string) => void
   advanceStep: (step: 'payment' | 'confirmation') => void
   resetCheckout: () => void
   setPreferenceId: (preferenceId: string) => void

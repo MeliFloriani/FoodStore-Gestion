@@ -65,10 +65,12 @@ describe('AuthLayout — post-login redirects', () => {
     expect(screen.queryByText('Login Content')).not.toBeInTheDocument()
   })
 
-  it('(c) STOCK login redirects to /stock/products', () => {
+  it('(c) STOCK login redirects to /catalog (Stock module dormant pre-Change-24)', () => {
+    // Pre-Change-24 surgical fix: /stock/* placeholder was removed and STOCK
+    // role has no real landing yet — resolveDefaultRoute falls back to /catalog.
     useAuthStore.setState({ status: 'authenticated', user: makeUser(['STOCK']) })
     renderAuthLayout()
-    expect(screen.getByText('Stock Page')).toBeInTheDocument()
+    expect(screen.getByText('Catalog Page')).toBeInTheDocument()
     expect(screen.queryByText('Login Content')).not.toBeInTheDocument()
   })
 

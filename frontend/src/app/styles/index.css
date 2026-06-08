@@ -20,6 +20,7 @@
     --color-border: #e5e7eb;
     --color-input: #e5e7eb;
     --color-ring: #f04438;
+    --color-ring-focus: #fda89f;
 
     --color-card: #ffffff;
     --color-card-foreground: #111827;
@@ -51,6 +52,7 @@
     --color-border: #374151;
     --color-input: #374151;
     --color-ring: #f04438;
+    --color-ring-focus: #f97970;
 
     --color-card: #1f2937;
     --color-card-foreground: #f9fafb;

@@ -8,39 +8,46 @@ describe('filterNavItems', () => {
     expect(result).toHaveLength(0)
   })
 
-  it('(b) CLIENT role returns only CLIENT items', () => {
+  it('(b) CLIENT role returns CLIENT items', () => {
     const result = filterNavItems(NAVIGATION_ITEMS, ['CLIENT'])
     const paths = result.map(item => item.path)
-    // Should contain CLIENT items
+    // Should contain CLIENT items (cart/orders/addresses are CLIENT-only)
     expect(paths).toContain('/catalog')
     expect(paths).toContain('/cart')
     expect(paths).toContain('/orders')
     expect(paths).toContain('/profile')
     expect(paths).toContain('/addresses')
-    // Should NOT contain STOCK items
+    // CLIENT must NOT see stock admin items
     expect(paths).not.toContain('/stock/products')
     expect(paths).not.toContain('/stock/categories')
+    expect(paths).not.toContain('/stock/ingredients')
     // Should NOT contain PEDIDOS items
     expect(paths).not.toContain('/pedidos-panel')
     // Should NOT contain ADMIN-only items
     expect(paths).not.toContain('/admin/users')
-    expect(paths).not.toContain('/admin/metrics')
+    expect(paths).not.toContain('/admin/metricas')
   })
 
-  it('(c) ADMIN role returns all items', () => {
+  it('(c) ADMIN role: catalog/profile + management items + stock CRUD (no CLIENT purchase flow)', () => {
     const result = filterNavItems(NAVIGATION_ITEMS, ['ADMIN'])
     const paths = result.map(item => item.path)
-    // CLIENT items
+    // Shared with CLIENT
     expect(paths).toContain('/catalog')
-    expect(paths).toContain('/cart')
-    // STOCK items
-    expect(paths).toContain('/stock/products')
-    expect(paths).toContain('/stock/categories')
-    // PEDIDOS items
+    expect(paths).toContain('/profile')
+    // Management
     expect(paths).toContain('/pedidos-panel')
-    // ADMIN-only items
     expect(paths).toContain('/admin/users')
-    expect(paths).toContain('/admin/metrics')
+    expect(paths).toContain('/admin/metricas')
+    // Stock CRUD restored — three real pages
+    expect(paths).toContain('/stock/ingredients')
+    expect(paths).toContain('/stock/categories')
+    expect(paths).toContain('/stock/products')
+    // ADMIN must NOT see CLIENT purchase flow
+    expect(paths).not.toContain('/cart')
+    expect(paths).not.toContain('/orders')
+    expect(paths).not.toContain('/addresses')
+    // /stock/inventory must NOT be advertised — no real implementation
+    expect(paths).not.toContain('/stock/inventory')
   })
 
   it('(d) ADMIN+CLIENT multi-role: union with no duplicate paths', () => {
@@ -51,6 +58,7 @@ describe('filterNavItems', () => {
     expect(uniquePaths.size).toBe(paths.length)
     // Has both CLIENT items and ADMIN-only items
     expect(paths).toContain('/catalog')
+    expect(paths).toContain('/cart') // CLIENT role grants access
     expect(paths).toContain('/admin/users')
   })
 
@@ -59,16 +67,20 @@ describe('filterNavItems', () => {
     expect(result).toHaveLength(0)
   })
 
-  it('STOCK role returns only STOCK items', () => {
+  it('STOCK role returns the three stock CRUD items (real pages exist now)', () => {
     const result = filterNavItems(NAVIGATION_ITEMS, ['STOCK'])
     const paths = result.map(item => item.path)
-    expect(paths).toContain('/stock/products')
-    expect(paths).toContain('/stock/categories')
-    expect(paths).toContain('/stock/ingredients')
-    expect(paths).toContain('/stock/inventory')
-    // Should NOT contain CLIENT items
+    expect(paths).toEqual([
+      '/stock/ingredients',
+      '/stock/categories',
+      '/stock/products',
+    ])
+    // STOCK must NOT see CLIENT purchase flow or ADMIN/PEDIDOS surfaces
     expect(paths).not.toContain('/cart')
+    expect(paths).not.toContain('/orders')
+    expect(paths).not.toContain('/addresses')
     expect(paths).not.toContain('/admin/users')
+    expect(paths).not.toContain('/pedidos-panel')
   })
 
   it('PEDIDOS role returns only PEDIDOS items', () => {
@@ -89,7 +101,7 @@ describe('resolveDefaultRoute', () => {
     expect(resolveDefaultRoute(['PEDIDOS'])).toBe('/pedidos-panel')
   })
 
-  it('STOCK role returns /stock/products', () => {
+  it('STOCK role returns /stock/products (real Stock landing)', () => {
     expect(resolveDefaultRoute(['STOCK'])).toBe('/stock/products')
   })
 
@@ -109,8 +121,7 @@ describe('resolveDefaultRoute', () => {
     expect(resolveDefaultRoute(['ADMIN', 'CLIENT'])).toBe('/admin')
   })
 
-  it('multi-role CLIENT+STOCK returns /stock/products (STOCK > CLIENT in priority)', () => {
-    // STOCK has higher priority than CLIENT per resolveDefaultRoute
+  it('multi-role CLIENT+STOCK returns /stock/products (STOCK priority over CLIENT)', () => {
     expect(resolveDefaultRoute(['CLIENT', 'STOCK'])).toBe('/stock/products')
   })
 })

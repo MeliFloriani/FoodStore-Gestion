@@ -56,7 +56,7 @@ describe('AuthSync', () => {
 
     // Wait for microtasks to settle
     await vi.waitFor(() => {
-      expect(http.get).toHaveBeenCalledWith('/auth/me')
+      expect(http.get).toHaveBeenCalledWith('/api/v1/auth/me')
     })
   })
 

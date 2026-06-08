@@ -2,11 +2,11 @@
  * API endpoint path constants.
  * Do NOT include base URL — that comes from env.VITE_API_BASE_URL via http.ts.
  */
-export const AUTH_LOGIN = '/auth/login' as const
-export const AUTH_REFRESH = '/auth/refresh' as const
-export const AUTH_ME = '/auth/me' as const
-export const AUTH_REGISTER = '/auth/register' as const
-export const AUTH_LOGOUT = '/auth/logout' as const
+export const AUTH_LOGIN = '/api/v1/auth/login' as const
+export const AUTH_REFRESH = '/api/v1/auth/refresh' as const
+export const AUTH_ME = '/api/v1/auth/me' as const
+export const AUTH_REGISTER = '/api/v1/auth/register' as const
+export const AUTH_LOGOUT = '/api/v1/auth/logout' as const
 
 // Catalog — Categories (Change 09)
 export const CATEGORIAS = '/api/v1/categorias' as const
@@ -24,3 +24,6 @@ export const CATALOG_ALERGENOS = '/api/v1/catalog/ingredientes-alergenos' as con
 // Profile (Change 13 — customer-profile-management)
 export const PROFILE_ME = '/api/v1/profile/me' as const
 export const PROFILE_ME_PASSWORD = '/api/v1/profile/me/password' as const
+
+// Admin — Usuarios (Change 21 — admin-users-management)
+export const ADMIN_USUARIOS = '/api/v1/admin/usuarios' as const

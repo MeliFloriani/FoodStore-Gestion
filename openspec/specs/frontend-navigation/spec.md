@@ -2,29 +2,14 @@
 
 ## Purpose
 Define the role-adaptive navigation system for the Food Store frontend. This covers the typed `NavigationItem` registry, the `filterNavItems` and `resolveDefaultRoute` pure functions, the `<Navigation>` widget contract, the multi-role UNION rule for menu rendering, and the anonymous navigation state. Navigation config is pure data — it has no React imports and is importable from any FSD layer at or above `shared/`.
-
 ## Requirements
-
 ### Requirement: NavigationItem registry
-`src/shared/lib/navigation/items.ts` SHALL export a typed `NavigationItem` interface and two constants: `NAVIGATION_ITEMS` (all items with role gates) and `ANONYMOUS_NAV_ITEMS` (items for unauthenticated users). `NavigationItem` SHALL have the following shape: `key: string`, `label: string`, `path: string`, `icon?: string`, `allowedRoles: string[]` (empty array means public — no role required but still shown only when authenticated; use `ANONYMOUS_NAV_ITEMS` for unauthenticated state).
-<!-- Design decision: A single enforcement mechanism. Items restricted to ADMIN use allowedRoles: ['ADMIN']. The adminOnly field was removed to prevent tiebreak ambiguity. -->
 
-`NAVIGATION_ITEMS` SHALL cover these items grouped by role ownership:
-- CLIENT items: Catálogo (`/catalog`), Mi Carrito (`/cart`), Mis Pedidos (`/orders`), Mi Perfil (`/profile`), Mis Direcciones (`/addresses`); `allowedRoles: ['CLIENT','ADMIN']`.
-- STOCK items: Productos (`/stock/products`), Categorías (`/stock/categories`), Ingredientes (`/stock/ingredients`), Stock (`/stock/inventory`); `allowedRoles: ['STOCK','ADMIN']`.
-- PEDIDOS items: Panel de Pedidos (`/pedidos-panel`); `allowedRoles: ['PEDIDOS','ADMIN']`.
-- ADMIN-only items: Usuarios (`/admin/users`), Métricas (`/admin/metrics`); `allowedRoles: ['ADMIN']`.
-<!-- OUT OF SCOPE for Change 08 (foundation only): Configuración (/admin/config) will be added in the admin module change when the route and page exist -->
+The ADMIN-only item `Métricas` in `NAVIGATION_ITEMS` SHALL use `path: '/admin/metricas'` (not `/admin/metrics`). All other fields — `label`, `allowedRoles: ['ADMIN']`, `key` — remain unchanged.
 
-`ANONYMOUS_NAV_ITEMS` SHALL contain: Catálogo (`/catalog`), Login (`/login`), Registrarse (`/register`).
-
-#### Scenario: Registry contains all required items
+#### MODIFIED Scenario: Registry contains all required items — Métricas path
 - **WHEN** `NAVIGATION_ITEMS` is imported
-- **THEN** it contains exactly the items specified above with correct `path` and `allowedRoles` values
-
-#### Scenario: Anonymous registry is distinct
-- **WHEN** `ANONYMOUS_NAV_ITEMS` is imported
-- **THEN** it contains exactly 3 items: Catálogo, Login, Registrarse
+- **THEN** the ADMIN-only Métricas item has `path: '/admin/metricas'` (not `/admin/metrics`)
 
 ---
 
@@ -109,6 +94,35 @@ The navigation system SHALL use the UNION strategy for multi-role users: a user 
 - **WHEN** `<Navigation>` is rendered with `user.roles = ['ADMIN','CLIENT']`
 - **THEN** navigation contains both CLIENT items and ADMIN-only items
 - **THEN** no path is duplicated
+
+### Requirement: filterNavItems renders all management items for ADMIN role
+
+The assertion `the result includes paths /admin/users, /admin/metrics` SHALL be replaced with `/admin/metricas`.
+
+#### MODIFIED Scenario: filterNavItems with ADMIN role returns all 12 NAVIGATION_ITEMS — corrected path
+- **WHEN** `filterNavItems(NAVIGATION_ITEMS, ['ADMIN'])` is called
+- **THEN** the result has exactly 12 items
+- **THEN** the result includes paths `/stock/products`, `/stock/categories`, `/stock/ingredients`, `/stock/inventory`
+- **THEN** the result includes path `/pedidos-panel`
+- **THEN** the result includes paths `/admin/users`, `/admin/metricas`
+- **THEN** the result includes CLIENT paths `/catalog`, `/cart`, `/orders`, `/profile`, `/addresses`
+
+---
+
+### Requirement: ADMIN dashboard Métricas navigation entry SHALL point to /admin/metricas
+
+The system SHALL update the "Métricas" entry in `NAVIGATION_ITEMS` (`src/shared/lib/navigation/items.ts`) to use `path: '/admin/metricas'` (Spanish-language route). The `allowedRoles: ['ADMIN']` and `label: 'Métricas'` fields SHALL remain unchanged. This delta corrects the path from the placeholder `/admin/metrics` (English) established in Change 08.
+
+The `resolveDefaultRoute` function SHALL continue to return `/admin` for the `'ADMIN'` role (unchanged). The router's redirect to `/admin/metricas` handles the final landing.
+
+#### Scenario: ADMIN navigation includes Métricas item pointing to /admin/metricas
+- **WHEN** `filterNavItems(NAVIGATION_ITEMS, ['ADMIN'])` is called
+- **THEN** the result includes an item with `path: '/admin/metricas'` and `label: 'Métricas'`
+
+#### Scenario: Path correction does not affect other ADMIN items
+- **WHEN** `filterNavItems(NAVIGATION_ITEMS, ['ADMIN'])` is called
+- **THEN** Usuarios item still has `path: '/admin/users'`
+- **THEN** no other item paths are changed by this delta
 
 ## Acceptance
 

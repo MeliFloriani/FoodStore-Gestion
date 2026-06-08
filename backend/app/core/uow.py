@@ -24,15 +24,19 @@ Session visibility note:
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from app.repositories.admin_usuarios import AdminUsuariosRepository  # Change 21
     from app.repositories.categoria import CategoriaRepository
+    from app.repositories.direccion_entrega import DireccionEntregaRepository  # Change 14
+    from app.repositories.historial_estado import HistorialEstadoPedidoRepository  # Change 18
     from app.repositories.ingrediente import IngredienteRepository  # 6.1a — Change 10
+    from app.repositories.pedido import PedidoRepository  # Change 17
     from app.repositories.producto import ProductoRepository  # Change 11
     from app.repositories.user import (
         RefreshTokenRepository,
@@ -40,6 +44,7 @@ if TYPE_CHECKING:
         UsuarioRepository,
         UsuarioRolRepository,
     )
+    from app.pagos.repository import PagoRepository  # Change 19
 
 logger = get_logger(__name__)
 
@@ -76,6 +81,11 @@ class UnitOfWork:
         self._categorias: CategoriaRepository | None = None
         self._ingredientes: IngredienteRepository | None = None  # 6.1b — Change 10
         self._productos: ProductoRepository | None = None  # Change 11
+        self._direcciones_entrega: DireccionEntregaRepository | None = None  # Change 14
+        self._pedidos: PedidoRepository | None = None  # Change 17
+        self._historial_pedido: HistorialEstadoPedidoRepository | None = None  # Change 18
+        self._pagos: PagoRepository | None = None  # Change 19
+        self._admin_usuarios: AdminUsuariosRepository | None = None  # Change 21
 
     async def __aenter__(self) -> UnitOfWork:
         """Open a new AsyncSession via get_session_factory() and return self.
@@ -94,6 +104,11 @@ class UnitOfWork:
         self._categorias = None
         self._ingredientes = None  # 6.1c — Change 10
         self._productos = None  # Change 11
+        self._direcciones_entrega = None  # Change 14
+        self._pedidos = None  # Change 17
+        self._historial_pedido = None  # Change 18
+        self._pagos = None  # Change 19
+        self._admin_usuarios = None  # Change 21
         logger.debug("uow.begin", session_id=id(self._session))
         return self
 
@@ -265,24 +280,94 @@ class UnitOfWork:
         return self._ingredientes
 
     @property
-    def pedidos(self) -> NoReturn:
-        """Stub: PedidoRepository not yet implemented.
+    def pedidos(self) -> "PedidoRepository":
+        """Lazy accessor for PedidoRepository, bound to the current session.
 
-        # TODO(change-11): implement PedidoRepository and wire here.
+        Implemented in Change 17 (order-creation-with-snapshots).
+        Follows the same lazy @property pattern as uow.productos, uow.categorias.
+
+        PedidoRepository consolidates operations for Pedido, DetallePedido, and
+        HistorialEstadoPedido creation. Change 18 introduces uow.historial_pedido
+        — see D-09. uow.detalles_pedido does NOT exist.
         """
-        raise NotImplementedError(
-            "uow.pedidos not implemented — see Change 11 (orders)"
-        )
+        if self._session is None:
+            raise RuntimeError(
+                "UnitOfWork.pedidos accessed outside of async context manager."
+            )
+        if self._pedidos is None:
+            from app.repositories.pedido import PedidoRepository
+
+            self._pedidos = PedidoRepository(self._session)
+        return self._pedidos
 
     @property
-    def direcciones(self) -> NoReturn:
-        """Stub: DireccionRepository not yet implemented.
+    def historial_pedido(self) -> "HistorialEstadoPedidoRepository":
+        """Lazy accessor for HistorialEstadoPedidoRepository, bound to the current session.
 
-        # TODO(change-11): implement DireccionRepository and wire here.
+        Change 18 (D-09): Supersedes Change 17 restriction that stated
+        uow.historial_pedido did NOT exist.
+        Append-only — HistorialEstadoPedidoRepository has no update/delete.
         """
-        raise NotImplementedError(
-            "uow.direcciones not implemented — see Change 11 (orders)"
-        )
+        if self._session is None:
+            raise RuntimeError(
+                "UnitOfWork.historial_pedido accessed outside of async context manager."
+            )
+        if self._historial_pedido is None:
+            from app.repositories.historial_estado import HistorialEstadoPedidoRepository
+
+            self._historial_pedido = HistorialEstadoPedidoRepository(self._session)
+        return self._historial_pedido
+
+    @property
+    def pagos(self) -> "PagoRepository":
+        """Lazy accessor for PagoRepository, bound to the current session.
+
+        Implemented in Change 19 (payments-mercadopago-integration).
+        Provides access to payment CRUD and query methods for the pagos service.
+        """
+        if self._session is None:
+            raise RuntimeError(
+                "UnitOfWork.pagos accessed outside of async context manager."
+            )
+        if self._pagos is None:
+            from app.pagos.repository import PagoRepository
+
+            self._pagos = PagoRepository(self._session)
+        return self._pagos
+
+    @property
+    def admin_usuarios(self) -> "AdminUsuariosRepository":
+        """Lazy accessor for AdminUsuariosRepository, bound to the current session.
+
+        Implemented in Change 21 (admin-users-management).
+        Provides paginated listing and last-admin guard count methods.
+        """
+        if self._session is None:
+            raise RuntimeError(
+                "UnitOfWork.admin_usuarios accessed outside of async context manager."
+            )
+        if self._admin_usuarios is None:
+            from app.repositories.admin_usuarios import AdminUsuariosRepository
+
+            self._admin_usuarios = AdminUsuariosRepository(self._session)
+        return self._admin_usuarios
+
+    @property
+    def direcciones(self) -> "DireccionEntregaRepository":
+        """Lazy accessor for DireccionEntregaRepository, bound to the current session.
+
+        Implemented in Change 14 (delivery-addresses-management).
+        Follows the same lazy @property pattern as uow.categorias and uow.productos.
+        """
+        if self._session is None:
+            raise RuntimeError(
+                "UnitOfWork.direcciones accessed outside of async context manager."
+            )
+        if self._direcciones_entrega is None:
+            from app.repositories.direccion_entrega import DireccionEntregaRepository
+
+            self._direcciones_entrega = DireccionEntregaRepository(self._session)
+        return self._direcciones_entrega
 
 
 async def get_uow() -> AsyncGenerator[UnitOfWork, None]:

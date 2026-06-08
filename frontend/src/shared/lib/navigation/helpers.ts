@@ -14,6 +14,8 @@ export function filterNavItems(items: NavigationItem[], userRoles: string[]): Na
 export function resolveDefaultRoute(roles: string[]): string {
   if (roles.includes('ADMIN')) return '/admin'
   if (roles.includes('PEDIDOS')) return '/pedidos-panel'
+  // STOCK lands on /stock/products — the real CRUD page restored post the
+  // pre-Change-24 fix correction. Matches frontend-navigation spec §default-route.
   if (roles.includes('STOCK')) return '/stock/products'
   if (roles.includes('CLIENT')) return '/catalog'
   return '/catalog'

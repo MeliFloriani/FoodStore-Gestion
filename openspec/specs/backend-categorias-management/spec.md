@@ -1,5 +1,8 @@
-## ADDED Requirements
+# backend-categorias-management Specification
 
+## Purpose
+Backend category management capability: Pydantic schemas, repository, service, and REST endpoints for the `categoria` domain including hierarchical tree support, soft-delete guards, and RFC 7807 error responses. Introduced in Change 09 (catalog-categories-management).
+## Requirements
 ### Requirement: Pydantic schemas for Categoria
 The system SHALL provide Pydantic v2 schemas in `backend/app/schemas/categoria.py` for all category API operations: `CategoriaBase`, `CategoriaCreate`, `CategoriaUpdate`, `CategoriaRead`, and `CategoriaTreeNode`.
 
@@ -249,6 +252,25 @@ The system SHALL return RFC 7807-compliant error responses for all category busi
 #### Scenario: 422 CATEGORY_CYCLE_DETECTED matches RFC 7807 shape
 - **WHEN** a cycle is detected during update
 - **THEN** body contains `{"status": 422, "code": "CATEGORY_CYCLE_DETECTED"}`
+
+### Requirement: ADMIN RBAC ratification for categorias write endpoints — cross-reference
+The `backend-categorias-management` spec SHALL ratify the ADMIN access matrix for all category endpoints as defined in `backend-admin-aggregated-permissions`. The following MUST hold for write endpoints:
+
+- `POST /api/v1/categorias/` SHALL accept `require_role("ADMIN", "STOCK")`. Both roles can create categories.
+- `PUT /api/v1/categorias/{id}` SHALL accept `require_role("ADMIN", "STOCK")`. Both roles can update categories.
+- `DELETE /api/v1/categorias/{id}` SHALL accept `require_role("ADMIN", "STOCK")`. Both roles can soft-delete categories.
+
+Read endpoints (`GET /api/v1/categorias/`, `GET /api/v1/categorias/{id}`) are public — no authentication required.
+
+See `backend-admin-aggregated-permissions` for the canonical RBAC matrix.
+
+#### Scenario: ADMIN RBAC smoke test — all category write endpoints return non-403 for ADMIN
+- **WHEN** `POST /api/v1/categorias/`, `PUT /api/v1/categorias/{id}`, `DELETE /api/v1/categorias/{id}` are each called with a valid ADMIN JWT and valid payloads
+- **THEN** none of these endpoints return HTTP 403 (authorization does not block ADMIN)
+
+#### Scenario: ADMIN can create a category (ratification)
+- **WHEN** `POST /api/v1/categorias/` is called with a valid ADMIN JWT and `{"nombre": "Bebidas"}`
+- **THEN** response is HTTP 201 with `CategoriaRead`
 
 ## ADDED Requirements
 

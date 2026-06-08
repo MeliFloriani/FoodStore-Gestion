@@ -32,7 +32,7 @@ describe('http.ts refresh queue', () => {
   it('retries a single 401 request after successful token refresh', async () => {
     let protectedCallCount = 0
 
-    mock.onPost('/auth/refresh').replyOnce(200, {
+    mock.onPost('/api/v1/auth/refresh').replyOnce(200, {
       access_token: 'new-access-token',
       refresh_token: 'new-refresh-token',
     })
@@ -55,7 +55,7 @@ describe('http.ts refresh queue', () => {
     let refreshCallCount = 0
     const protectedCallCounts = [0, 0, 0]
 
-    mock.onPost('/auth/refresh').reply(() => {
+    mock.onPost('/api/v1/auth/refresh').reply(() => {
       refreshCallCount++
       return [200, { access_token: 'new-token', refresh_token: 'new-refresh' }]
     })
@@ -95,7 +95,7 @@ describe('http.ts refresh queue', () => {
   })
 
   it('updates authStore with new tokens after successful refresh', async () => {
-    mock.onPost('/auth/refresh').replyOnce(200, {
+    mock.onPost('/api/v1/auth/refresh').replyOnce(200, {
       access_token: 'fresh-access',
       refresh_token: 'fresh-refresh',
     })
@@ -117,7 +117,7 @@ describe('http.ts refresh queue', () => {
     const events: Event[] = []
     window.addEventListener('auth:expired', (e) => events.push(e))
 
-    mock.onPost('/auth/refresh').replyOnce(401, { detail: 'Refresh token expired' })
+    mock.onPost('/api/v1/auth/refresh').replyOnce(401, { detail: 'Refresh token expired' })
     mock.onGet('/secure').replyOnce(401, {})
 
     try {

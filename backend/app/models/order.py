@@ -6,15 +6,17 @@ Entidades: EstadoPedido, Pedido, DetallePedido, HistorialEstadoPedido, Pago.
 Design decisions:
 - D-17: Todos los modelos del dominio ventas en un único archivo.
 - D-18: PK UUID v4. EstadoPedido.codigo = PK semántica (FK destino de D-28).
-- D-19: DetallePedido.personalizacion = Column(ARRAY(Integer), nullable=True) explícito.
-         SQLModel no genera ARRAY automáticamente desde list[int].
+- D-19: DetallePedido.personalizacion = Column(ARRAY(UUID), nullable=True) explícito.
+         Changed from ARRAY(Integer) to ARRAY(UUID) in Change 17 (D-09 / Nota R-01).
+         Ingrediente.id is UUID; CartItem.personalizacion is string[] (UUIDs).
+         Migration 0008 (e5f6a7b8c9d0) converts the column type in PostgreSQL.
 - D-21: Pedido.direccion_id nullable, ON DELETE SET NULL.
 - D-23/D-31: HistorialEstadoPedido hereda Base completo; updated_at dormant.
 - D-28: Pedido.forma_pago_codigo y estado_codigo son FK semánticas a codigo (no a id).
          HistorialEstadoPedido.estado_desde/hasta → estado_pedido.codigo.
 - D-30: Todas las Relationship con back_populates, foreign_keys, lazy explícito.
          lazy="select" prohibido (MissingGreenlet en sesiones async).
-- R-A-04: ARRAY(Integer) requiere import explícito de sqlalchemy.
+- R-A-04: ARRAY type requires explicit import from sqlalchemy.
 
 NOTE: No 'from __future__ import annotations' — SQLModel 0.0.38 resuelve
 los tipos de relationship en tiempo de ejecución.
@@ -23,7 +25,8 @@ los tipos de relationship en tiempo de ejecución.
 import uuid
 from typing import List, Optional
 
-from sqlalchemy import ARRAY, BIGINT, DECIMAL, CheckConstraint, Column, ForeignKey, Integer
+from sqlalchemy import ARRAY, BIGINT, DECIMAL, CheckConstraint, Column, ForeignKey, String
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, Relationship
 
 from app.models.base import Base  # noqa: F401 — also imports app.db.base (naming_convention)
@@ -222,9 +225,11 @@ class DetallePedido(Base, table=True):
         sa_column=Column("precio_snapshot", DECIMAL(10, 2), nullable=False)
     )
     cantidad: int = Field(nullable=False)
-    # D-19: ARRAY(Integer) explícito — snapshot de IDs de ingredientes removidos
-    personalizacion: Optional[List[int]] = Field(
-        sa_column=Column("personalizacion", ARRAY(Integer), nullable=True)
+    # D-19 (Change 17 update): ARRAY(UUID) — UUIDs de ingredientes excluidos.
+    # Changed from ARRAY(Integer) per D-09/Nota R-01 — Ingrediente.id is UUID.
+    # Migration 0008 (e5f6a7b8c9d0) updates the column type in PostgreSQL.
+    personalizacion: Optional[List[uuid.UUID]] = Field(
+        sa_column=Column("personalizacion", ARRAY(PG_UUID(as_uuid=True)), nullable=True)
     )
 
     # Relationships (D-30)
@@ -323,7 +328,14 @@ class HistorialEstadoPedido(Base, table=True):
 
 
 class Pago(Base, table=True):
-    """Registro de pago MercadoPago con campos de idempotencia."""
+    """Registro de pago MercadoPago con campos de idempotencia.
+
+    Change 19 (payments-mercadopago-integration):
+      - external_reference UNIQUE constraint dropped (migration 0010) — 1:N Pago/Pedido.
+      - mp_status_detail added (migration 0010) — stores MP rejection reason codes.
+      - mp_preference_id added (migration 0011) — Checkout Pro preference ID.
+        mp_payment_id stays NULL until webhook assigns the real payment ID.
+    """
 
     __tablename__ = "pago"
 
@@ -338,11 +350,22 @@ class Pago(Base, table=True):
     mp_payment_id: Optional[int] = Field(
         sa_column=Column("mp_payment_id", BIGINT, unique=True, nullable=True)
     )
+    # Change 19 (migration 0011): Checkout Pro preference ID — NULL until webhook
+    mp_preference_id: Optional[str] = Field(
+        sa_column=Column("mp_preference_id", String(100), unique=True, nullable=True, index=True),
+        default=None,
+    )
     mp_status: str = Field(max_length=30, nullable=False)
-    external_reference: str = Field(max_length=100, nullable=False, unique=True)
+    # Change 19 (migration 0010): unique=True dropped — allow 1:N Pago per Pedido (retry)
+    external_reference: str = Field(max_length=100, nullable=False)
     idempotency_key: str = Field(max_length=100, nullable=False, unique=True)
     monto: Optional[float] = Field(
         sa_column=Column("monto", DECIMAL(10, 2), nullable=True)
+    )
+    # Change 19 (migration 0010): stores MP rejection reason code for frontend display
+    mp_status_detail: Optional[str] = Field(
+        sa_column=Column("mp_status_detail", String(100), nullable=True),
+        default=None,
     )
 
     # Relationships (D-30)

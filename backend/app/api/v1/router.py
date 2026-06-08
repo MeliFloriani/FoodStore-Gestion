@@ -85,4 +85,34 @@ def build_v1_router(settings: Settings) -> APIRouter:
 
     router.include_router(profile_router, prefix="/profile", tags=["profile"])
 
+    # --- Addresses (Change 14 — delivery-addresses-management) ---
+    from app.api.v1.direcciones import direcciones_router  # noqa: PLC0415
+
+    router.include_router(direcciones_router, prefix="/direcciones", tags=["Direcciones"])
+
+    # --- Pedidos Validacion (Change 16 — pre-checkout-validations) ---
+    from app.api.v1.pedidos_validar import pedidos_validar_router  # noqa: PLC0415
+
+    router.include_router(pedidos_validar_router, prefix="/pedidos", tags=["pedidos-validacion"])
+
+    # --- Pedidos — creación transaccional (Change 17 — order-creation-with-snapshots) ---
+    from app.api.v1.pedidos import pedidos_router  # noqa: PLC0415
+
+    router.include_router(pedidos_router, prefix="/pedidos", tags=["pedidos"])
+
+    # --- Pagos — MercadoPago integration (Change 19 — payments-mercadopago-integration) ---
+    from app.pagos.router import pagos_router  # noqa: PLC0415
+
+    router.include_router(pagos_router, prefix="/pagos", tags=["pagos"])
+
+    # --- Admin: Usuarios (Change 21 — admin-users-management) ---
+    from app.api.v1.admin_usuarios import admin_usuarios_router  # noqa: PLC0415
+
+    router.include_router(admin_usuarios_router, prefix="/admin/usuarios", tags=["admin-usuarios"])
+
+    # --- Admin: Métricas Dashboard (Change 23 — admin-metrics-dashboard) ---
+    from app.modules.admin.metricas.router import metricas_router  # noqa: PLC0415
+
+    router.include_router(metricas_router, prefix="/admin/metricas", tags=["admin-metricas"])
+
     return router

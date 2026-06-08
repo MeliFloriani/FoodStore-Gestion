@@ -59,7 +59,7 @@ Where `Toast` SHALL be a type with at minimum: `id: string`, `message: string`, 
 
 **State**:
 - `preferenceId: string | null` — MercadoPago preference ID, set when checkout is initiated
-- `pedidoId: number | null` — ID of the order being paid. Set by `startCheckout(pedidoId)`. Used by the checkout feature to call `POST /api/v1/pedidos/{id}/payment-preference`. Initialized to `null`.
+- `pedidoId: string | null` — ID of the order being paid (UUID string). Set by `startCheckout(pedidoId)`. Used by the checkout-payment feature to call `POST /api/v1/pagos`. Initialized to `null`. **MODIFIED in Change 19** from `number | null` to `string | null` (UUID) to align with `Pedido.id` type in TypeScript.
 - `status: 'idle' | 'pending' | 'processing' | 'success' | 'failed'` — initialized to `'idle'`
 - `lastErrorCode: string | null` — last error code from payment provider or backend
 - `checkoutStep: 'idle' | 'order-summary' | 'payment' | 'confirmation'` — tracks the current step of the checkout flow. Defaults to `'idle'`.
@@ -69,11 +69,13 @@ Where `Toast` SHALL be a type with at minimum: `id: string`, `message: string`, 
 - `setStatus(status: PaymentStatus): void`
 - `setLastErrorCode(code: string | null): void`
 - `reset(): void` — resets all fields to initial values
-- `startCheckout(pedidoId: number): void` — sets `checkoutStep` to `'order-summary'` and stores `pedidoId` in state. **This is a UI state transition stub only — no networking. The actual API call to create a payment preference belongs to the checkout feature, not the foundation store.**
+- `startCheckout(pedidoId: string): void` — sets `checkoutStep` to `'order-summary'` and stores `pedidoId` (UUID string) in state. **This is a UI state transition stub only — no networking. The actual API call to create a payment preference belongs to the checkout-payment feature, not the foundation store.** **MODIFIED in Change 19** from `startCheckout(pedidoId: number)` to `startCheckout(pedidoId: string)`.
 - `advanceStep(step: 'payment' | 'confirmation'): void` — moves checkout to a later step.
 - `resetCheckout(): void` — alias to `reset()` that also resets `checkoutStep` to `'idle'`.
 
-> **Constraint — UI state only**: `startCheckout()` is a UI state transition — it does NOT call any API. The actual backend call to `POST /api/v1/pedidos/{id}/payment-preference` belongs to the `checkout-payment` feature. The store receives the result (preferenceId) via `setPreferenceId()` after the API call completes.
+> **Constraint — UI state only**: `startCheckout()` is a UI state transition — it does NOT call any API. The actual backend call to `POST /api/v1/pagos` (Change 19) belongs to the `checkout-payment` feature. The store receives the result (preferenceId) via `setPreferenceId()` after the API call completes.
+
+> **Removed reference (Change 19)**: The legacy spec reference to `POST /api/v1/pedidos/{id}/payment-preference` and `card_token` storage in the store do NOT apply. Change 19 uses `POST /api/v1/pagos` with only `{ pedido_id, idempotency_key }`. Card data never touches the browser — Checkout Pro.
 
 #### Scenario: setPreferenceId stores the preference ID
 - **WHEN** `paymentStore.getState().setPreferenceId('pref_abc123')` is called
@@ -83,10 +85,14 @@ Where `Toast` SHALL be a type with at minimum: `id: string`, `message: string`, 
 - **WHEN** `paymentStore.getState().reset()` is called after setting some fields
 - **THEN** `preferenceId` is `null`, `status` is `'idle'`, `lastErrorCode` is `null`
 
-#### Scenario: startCheckout transitions to order-summary step and stores pedidoId
-- **WHEN** `startCheckout(42)` is called
+#### Scenario: startCheckout accepts UUID string and stores it correctly (Change 19)
+- **WHEN** `paymentStore.getState().startCheckout("a3b4c5d6-1234-5678-abcd-ef0123456789")` is called
 - **THEN** `checkoutStep` is `'order-summary'`
-- **THEN** `pedidoId` is `42`
+- **THEN** `pedidoId` is `"a3b4c5d6-1234-5678-abcd-ef0123456789"` (string UUID, not a number)
+
+#### Scenario: pedidoId is null on initialization and after reset
+- **WHEN** the store is initialized or `reset()` / `resetCheckout()` is called
+- **THEN** `paymentStore.getState().pedidoId` is `null`
 
 #### Scenario: resetCheckout returns checkout to idle
 - **WHEN** `resetCheckout()` is called
@@ -95,6 +101,19 @@ Where `Toast` SHALL be a type with at minimum: `id: string`, `message: string`, 
 #### Scenario: Consumer contract on navigation away
 - **WHEN** the component unmounts or user navigates away from checkout
 - **THEN** `resetCheckout()` SHALL be called (consumer contract — not an enforced store requirement)
+
+#### Scenario: PayWithMercadoPagoButton receives pedidoId as string prop (Change 19)
+- **WHEN** `<PayWithMercadoPagoButton pedidoId={paymentStore.pedidoId} ...>` is rendered after `startCheckout` was called
+- **THEN** `pedidoId` prop is a UUID string (e.g. `"a3b4c5d6-..."`)
+- **THEN** `POST /api/v1/pagos` body includes `pedido_id: "a3b4c5d6-..."` (string UUID, not a number)
+
+#### Scenario: setStatus transitions used by CheckoutReturnPage (Change 19)
+- **WHEN** `CheckoutReturnPage` mounts and reads `?status=pending` from MP back_url
+- **THEN** `paymentStore.setStatus('pending')` is called
+- **WHEN** `usePaymentStatus` polling detects `estado_codigo = "CONFIRMADO"`
+- **THEN** `paymentStore.setStatus('success')` is called and polling stops
+- **WHEN** `?status=failure` is in back_url params
+- **THEN** `paymentStore.setStatus('failed')` is called
 
 ---
 

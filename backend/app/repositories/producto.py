@@ -399,6 +399,34 @@ class ProductoRepository(BaseRepository[Producto]):
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
+    async def get_by_ids(self, ids: list[uuid.UUID]) -> list[Producto]:
+        """Fetch multiple products by their UUIDs in a single query (anti-N+1).
+
+        Only returns products with deleted_at IS NULL. Products that do not exist
+        or have been soft-deleted are silently excluded from the result — the caller
+        (pedidos_validar_service) interprets missing IDs as PRODUCTO_NO_VIGENTE.
+
+        This method is required by Change 16 (pre-checkout-validations) and does NOT
+        exist in the Change 11 spec. It was added as a MODIFIED requirement per
+        specs/backend-pre-checkout-validations/spec.md.
+
+        Args:
+            ids: List of product UUIDs to fetch. May contain duplicates — SQLAlchemy
+                 IN clause deduplicates at query level.
+
+        Returns:
+            List of Producto instances (may be shorter than len(ids) if some are
+            soft-deleted or non-existent). Order is not guaranteed.
+        """
+        if not ids:
+            return []
+        stmt = select(Producto).where(
+            Producto.id.in_(ids),  # type: ignore[union-attr]
+            Producto.deleted_at.is_(None),  # type: ignore[union-attr]
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def decrement_stock(
         self,
         producto_id: uuid.UUID,

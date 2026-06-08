@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     DATABASE_URL: str  # No default — must be set in environment
     SECRET_KEY: SecretStr  # No default — must be set in environment (JWT signing key)
 
+    # --- MercadoPago integration (Change 19 — payments-mercadopago-integration) ---
+    # All four fields are required (no defaults). Loaded from environment / .env.
+    MP_ACCESS_TOKEN: str  # Server-side access token for MP Payments API calls
+    MP_PUBLIC_KEY: str  # Public key (safe to expose; used by frontend MP SDK) — kept for compatibility
+    MP_WEBHOOK_SECRET: str  # Secret for verifying webhook HMAC-SHA256 signatures
+    MP_NOTIFICATION_URL: str  # Full public URL of the IPN webhook endpoint
+    # Checkout Pro back_urls base — used to build success/pending/failure redirect URLs
+    FRONTEND_BASE_URL: str = "http://localhost:5173"
+
     # --- Optional with sensible defaults ---
     ENVIRONMENT: str = "development"
     JWT_ALGORITHM: str = "HS256"
@@ -41,7 +50,10 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     # Declared as str so pydantic-settings won't pre-parse as JSON;
     # assemble_cors_origins converts it to list[str].
-    BACKEND_CORS_ORIGINS: str | list[str] = ["http://localhost:5173"]
+    BACKEND_CORS_ORIGINS: str | list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
     API_V1_PREFIX: str = "/api/v1"
     LOG_LEVEL: str = "INFO"
     RATE_LIMIT_DEFAULT: str = "100/minute"

@@ -6,6 +6,7 @@
  */
 
 import type { ProductoPublicoDetalleRead } from '@/entities/products'
+import { AddToCartButton } from '@/features/cart/add-to-cart'
 import { AllergenBadge } from './AllergenBadge'
 
 interface ProductDetailViewProps {
@@ -55,6 +56,9 @@ export function ProductDetailView({ product }: ProductDetailViewProps) {
             </span>
           )}
         </div>
+
+        {/* Add to cart */}
+        <AddToCartButton product={product} />
 
         {/* Description */}
         {descripcion && (

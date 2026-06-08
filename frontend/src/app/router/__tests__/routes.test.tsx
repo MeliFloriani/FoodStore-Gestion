@@ -1,8 +1,21 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuthStore } from '@/entities/auth/model/store'
 import type { User } from '@/entities/auth/types'
+
+// Navigation (rendered inside AppLayout) now depends on TanStack Query via the
+// useLogout hook. Provide a fresh QueryClient per render to satisfy that need.
+function renderWithProviders(ui: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: 0 },
+      mutations: { retry: false },
+    },
+  })
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
+}
 
 // We import the router config lazily to get a fresh router per test
 // Instead of reusing the singleton router, we create test routers with the same structure
@@ -51,7 +64,33 @@ const LoginPageMock = lazy(() =>
 const ForbiddenPageMock = lazy(() =>
   Promise.resolve({ default: function ForbiddenPage() { return <div>Forbidden Page</div> } }),
 )
-const StockPlaceholder = () => <div>Stock Module — Placeholder</div>
+const NotFoundPageMock = lazy(() =>
+  Promise.resolve({ default: function NotFoundPage() { return <div>Not Found Page</div> } }),
+)
+const AddressesPageMock = lazy(() =>
+  Promise.resolve({ default: function AddressesPage() { return <div>Addresses Page</div> } }),
+)
+const StockIngredientsMock = lazy(() =>
+  Promise.resolve({
+    default: function StockIngredientsPage() {
+      return <div>Stock Ingredients Page</div>
+    },
+  }),
+)
+const StockCategoriesMock = lazy(() =>
+  Promise.resolve({
+    default: function StockCategoriesPage() {
+      return <div>Stock Categories Page</div>
+    },
+  }),
+)
+const StockProductsMock = lazy(() =>
+  Promise.resolve({
+    default: function StockProductsPage() {
+      return <div>Stock Products Page</div>
+    },
+  }),
+)
 
 function buildTestRouter(initialPath: string) {
   return createMemoryRouter(
@@ -72,6 +111,10 @@ function buildTestRouter(initialPath: string) {
                 path: '/403',
                 element: <Suspense fallback={<PageLoader />}><ForbiddenPageMock /></Suspense>,
               },
+              {
+                path: '/404',
+                element: <Suspense fallback={<PageLoader />}><NotFoundPageMock /></Suspense>,
+              },
             ],
           },
           // BRANCH 2: Auth
@@ -91,18 +134,40 @@ function buildTestRouter(initialPath: string) {
               {
                 element: <AppLayout />,
                 children: [
-                  // STOCK routes
+                  // CLIENT-only routes (cart/checkout/addresses are CLIENT-only;
+                  // ADMIN is rejected to /403)
                   {
-                    element: <RoleGuard roles={['STOCK', 'ADMIN']} />,
+                    element: <RoleGuard roles={['CLIENT']} />,
                     children: [
-                      { path: '/stock/*', element: <StockPlaceholder /> },
+                      {
+                        path: '/addresses',
+                        element: <Suspense fallback={<PageLoader />}><AddressesPageMock /></Suspense>,
+                      },
+                    ],
+                  },
+                  // ADMIN+STOCK routes — restored real CRUD pages
+                  {
+                    element: <RoleGuard roles={['ADMIN', 'STOCK']} />,
+                    children: [
+                      {
+                        path: '/stock/ingredients',
+                        element: <Suspense fallback={<PageLoader />}><StockIngredientsMock /></Suspense>,
+                      },
+                      {
+                        path: '/stock/categories',
+                        element: <Suspense fallback={<PageLoader />}><StockCategoriesMock /></Suspense>,
+                      },
+                      {
+                        path: '/stock/products',
+                        element: <Suspense fallback={<PageLoader />}><StockProductsMock /></Suspense>,
+                      },
                     ],
                   },
                 ],
               },
             ],
           },
-          // Catch-all
+          // Catch-all → /404 (verifies that /stock/inventory still falls through)
           { path: '*', element: <Navigate to="/404" replace /> },
         ],
       },
@@ -119,36 +184,101 @@ describe('Route tree integration', () => {
   it('(a) unauthenticated GET /catalog renders CatalogPage (no redirect)', async () => {
     useAuthStore.setState({ status: 'unauthenticated' })
     const router = buildTestRouter('/catalog')
-    render(<RouterProvider router={router} />)
+    renderWithProviders(<RouterProvider router={router} />)
     await waitFor(() => {
       expect(screen.getByText('Catalog Page')).toBeInTheDocument()
     })
   })
 
-  it('(b) unauthenticated GET /stock/products redirects to /login', async () => {
-    useAuthStore.setState({ status: 'unauthenticated' })
+  it('(b) STOCK GET /stock/products renders the real Stock Products page (no placeholder)', async () => {
+    useAuthStore.setState({ status: 'authenticated', user: mockStockUser })
     const router = buildTestRouter('/stock/products')
-    render(<RouterProvider router={router} />)
+    renderWithProviders(<RouterProvider router={router} />)
     await waitFor(() => {
-      expect(screen.getByText('Login Page')).toBeInTheDocument()
+      expect(screen.getByText('Stock Products Page')).toBeInTheDocument()
+    })
+    // Defensive: the page must not be the old "Stock Module — Placeholder"
+    expect(screen.queryByText(/Stock Module — Placeholder/i)).not.toBeInTheDocument()
+  })
+
+  it('(b2) ADMIN GET /stock/ingredients renders the real Ingredients page', async () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      user: {
+        id: '550e8400-e29b-41d4-a716-446655440009',
+        nombre: 'Test',
+        apellido: 'Admin',
+        email: 'admin@example.com',
+        roles: ['ADMIN'],
+      },
+    })
+    const router = buildTestRouter('/stock/ingredients')
+    renderWithProviders(<RouterProvider router={router} />)
+    await waitFor(() => {
+      expect(screen.getByText('Stock Ingredients Page')).toBeInTheDocument()
     })
   })
 
-  it('(c) CLIENT role GET /stock/products redirects to /403', async () => {
+  it('(b3) ADMIN GET /stock/categories renders the real Categories page', async () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      user: {
+        id: '550e8400-e29b-41d4-a716-446655440010',
+        nombre: 'Test',
+        apellido: 'Admin',
+        email: 'admin@example.com',
+        roles: ['ADMIN'],
+      },
+    })
+    const router = buildTestRouter('/stock/categories')
+    renderWithProviders(<RouterProvider router={router} />)
+    await waitFor(() => {
+      expect(screen.getByText('Stock Categories Page')).toBeInTheDocument()
+    })
+  })
+
+  it('(b4) CLIENT GET /stock/products is rejected to /403', async () => {
     useAuthStore.setState({ status: 'authenticated', user: mockClientUser })
     const router = buildTestRouter('/stock/products')
-    render(<RouterProvider router={router} />)
+    renderWithProviders(<RouterProvider router={router} />)
     await waitFor(() => {
       expect(screen.getByText('Forbidden Page')).toBeInTheDocument()
     })
   })
 
-  it('(d) STOCK role GET /stock/products renders Stock placeholder', async () => {
+  it('(b5) /stock/inventory has no real implementation — falls through to /404', async () => {
     useAuthStore.setState({ status: 'authenticated', user: mockStockUser })
-    const router = buildTestRouter('/stock/products')
-    render(<RouterProvider router={router} />)
+    const router = buildTestRouter('/stock/inventory')
+    renderWithProviders(<RouterProvider router={router} />)
     await waitFor(() => {
-      expect(screen.getByText('Stock Module — Placeholder')).toBeInTheDocument()
+      expect(screen.getByText('Not Found Page')).toBeInTheDocument()
+    })
+  })
+
+  it('(c) ADMIN GET /addresses redirects to /403 (CLIENT-only purchase flow)', async () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      user: {
+        id: '550e8400-e29b-41d4-a716-446655440002',
+        nombre: 'Test',
+        apellido: 'Admin',
+        email: 'admin@example.com',
+        roles: ['ADMIN'],
+      },
+    })
+    const router = buildTestRouter('/addresses')
+    renderWithProviders(<RouterProvider router={router} />)
+    await waitFor(() => {
+      expect(screen.getByText('Forbidden Page')).toBeInTheDocument()
+    })
+  })
+
+  it('(d) CLIENT GET /addresses renders Addresses page', async () => {
+    useAuthStore.setState({ status: 'authenticated', user: mockClientUser })
+    const router = buildTestRouter('/addresses')
+    renderWithProviders(<RouterProvider router={router} />)
+    await waitFor(() => {
+      expect(screen.getByText('Addresses Page')).toBeInTheDocument()
     })
   })
 })

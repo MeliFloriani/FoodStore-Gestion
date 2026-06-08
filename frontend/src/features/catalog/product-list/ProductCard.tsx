@@ -7,6 +7,7 @@
 
 import { Link } from 'react-router-dom'
 import type { ProductoPublicoRead } from '@/entities/products'
+import { AddToCartButton } from '@/features/cart/add-to-cart'
 
 interface ProductCardProps {
   product: ProductoPublicoRead
@@ -39,11 +40,12 @@ export function ProductCard({ product }: ProductCardProps) {
       </div>
 
       {/* Product info */}
-      <div className="flex flex-1 flex-col gap-1 p-3">
+      <div className="flex flex-1 flex-col gap-2 p-3">
         <h3 className="line-clamp-2 text-sm font-semibold text-card-foreground">
           {nombre}
         </h3>
         <p className="mt-auto text-base font-bold text-primary">{formattedPrice}</p>
+        <AddToCartButton product={product} className="w-full" />
       </div>
     </Link>
   )

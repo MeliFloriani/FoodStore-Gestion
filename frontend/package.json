@@ -13,10 +13,12 @@
   "dependencies": {
     "@tanstack/react-form": "^1.32.0",
     "@tanstack/react-query": "^5.100.10",
+    "@testing-library/dom": "^10.4.1",
     "axios": "^1.16.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-router-dom": "^7.15.0",
+    "recharts": "^3.8.1",
     "zustand": "^5.0.13"
   },
   "devDependencies": {

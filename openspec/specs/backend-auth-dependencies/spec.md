@@ -174,3 +174,27 @@ These additions are purely additive — no existing `Settings` fields are modifi
 - **THEN** it contains placeholder entries for `SECRET_KEY`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `REFRESH_TOKEN_EXPIRE_DAYS`
 - **THEN** the `SECRET_KEY` placeholder is a clearly fake example value (e.g., `your-super-secret-key-change-in-production`)
 
+## ADDED Requirements (Change 21: admin-users-management)
+
+### Requirement: get_current_user blocks users deactivated via admin panel
+
+`get_current_user` in `backend/app/api/deps.py` already raises `UnauthorizedError` for users with `deleted_at IS NOT NULL` (see Requirement above). This behavior is the enforcement mechanism for the admin deactivation feature introduced in Change 21.
+
+When an admin deactivates a user via `PATCH /api/v1/admin/usuarios/{id}/estado` (with `activo=false`):
+1. The user's `deleted_at` is set to the current timestamp.
+2. All of the user's refresh tokens are revoked (`revoked_at` set).
+3. Any subsequent request with that user's Bearer JWT is rejected by `get_current_user` because `get_by_id` filters `WHERE deleted_at IS NULL`, returning `None` → `UnauthorizedError`.
+
+#### Scenario: Deactivated user's existing JWT is rejected
+- **WHEN** a user has been deactivated (admin set `deleted_at IS NOT NULL` via `PATCH /api/v1/admin/usuarios/{id}/estado`)
+- **AND** that user makes a request with a previously valid Bearer JWT
+- **THEN** `uow.usuarios.get_by_id(sub)` returns `None` (soft-delete filter active)
+- **THEN** `get_current_user` raises `UnauthorizedError`
+- **THEN** the client receives HTTP 401 with RFC 7807 body
+
+#### Scenario: Deactivated user's refresh token is also revoked
+- **WHEN** a user has been deactivated via the admin panel
+- **AND** that user attempts `POST /api/v1/auth/refresh` with a previously valid refresh token
+- **THEN** the refresh token is found but `revoked_at IS NOT NULL` (revoked during deactivation)
+- **THEN** the response is HTTP 401
+
