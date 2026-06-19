@@ -16,8 +16,20 @@ import { render, screen, waitFor, within, fireEvent, act } from '@testing-librar
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import StockIngredientsPage from '../index'
+import { ConfirmDialogProvider } from '@/shared/ui/confirm-dialog'
+import { ToastProvider } from '@/shared/ui/toast/ToastProvider'
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
+
+vi.mock('@/shared/ui/toast', async () => {
+  const tp = await vi.importActual<typeof import('@/shared/ui/toast/ToastProvider')>('@/shared/ui/toast/ToastProvider')
+  const ut = await vi.importActual<typeof import('@/shared/ui/toast/useToast')>('@/shared/ui/toast/useToast')
+  return {
+    ToastProvider: tp.ToastProvider,
+    useToast: ut.useToast,
+    Toast: () => null,
+  }
+})
 
 const mockCreateMutate = vi.fn()
 const mockUpdateMutate = vi.fn()
@@ -46,7 +58,11 @@ function renderPage() {
   return render(
     <QueryClientProvider client={makeQC()}>
       <MemoryRouter>
-        <StockIngredientsPage />
+        <ToastProvider>
+          <ConfirmDialogProvider>
+            <StockIngredientsPage />
+          </ConfirmDialogProvider>
+        </ToastProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   )
@@ -128,9 +144,9 @@ describe('StockIngredientsPage', () => {
     const deleteButtons = screen.getAllByRole('button', { name: /eliminar/i })
     fireEvent.click(deleteButtons[0]!)
     await waitFor(() =>
-      expect(screen.getByRole('dialog')).toBeInTheDocument(),
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument(),
     )
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     expect(within(dialog).getByText(/eliminar ingrediente/i)).toBeInTheDocument()
     expect(within(dialog).getByText(/Tomate/)).toBeInTheDocument()
   })
@@ -140,14 +156,14 @@ describe('StockIngredientsPage', () => {
     renderPage()
     const deleteButtons = screen.getAllByRole('button', { name: /eliminar/i })
     fireEvent.click(deleteButtons[0]!)
-    await waitFor(() => screen.getByRole('dialog'))
-    const dialog = screen.getByRole('dialog')
+    await waitFor(() => screen.getByRole('alertdialog'))
+    const dialog = screen.getByRole('alertdialog')
     await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: /eliminar/i }))
+      fireEvent.click(within(dialog).getByRole('button', { name: /confirmar/i }))
     })
     await waitFor(() => expect(mockDeleteMutate).toHaveBeenCalledWith('id-1'))
     await waitFor(() =>
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
     )
     expect(screen.getByText(/eliminado correctamente/i)).toBeInTheDocument()
   })

@@ -66,3 +66,15 @@ markers = [
     "integration: marks tests that require a seeded PostgreSQL database (deselect with '-m not integration')",
     "e2e: marks tests that require real MP sandbox credentials (opt-in, set MP_SANDBOX_ACCESS_TOKEN to run)",
 ]
+
+# ---------------------------------------------------------------------------
+# Coverage — pytest-cov
+# ---------------------------------------------------------------------------
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["tests/*", "migrations/*", "*/__init__.py"]
+
+[tool.coverage.report]
+fail_under = 60
+show_missing = true

@@ -103,7 +103,7 @@ describe('useCreateOrder', () => {
       })
     })
 
-    expect(mockPost).toHaveBeenCalledWith('/pedidos', {
+    expect(mockPost).toHaveBeenCalledWith('/api/v1/pedidos', {
       items: [
         expect.objectContaining({
           producto_id: 'prod-uuid-1',

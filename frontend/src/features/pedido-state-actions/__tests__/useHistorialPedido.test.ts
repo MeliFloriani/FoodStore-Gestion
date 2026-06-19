@@ -62,7 +62,7 @@ describe('useHistorialPedido', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    expect(mockGet).toHaveBeenCalledWith('/pedidos/order-uuid/historial')
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/pedidos/order-uuid/historial')
     expect(result.current.data).toHaveLength(2)
     expect(result.current.data![0].estado_hacia).toBe('PENDIENTE')
     expect(result.current.data![1].actor_user_id).toBe('user-uuid')

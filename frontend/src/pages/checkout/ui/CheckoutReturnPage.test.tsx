@@ -35,6 +35,8 @@ vi.mock('@/features/checkout-payment', () => ({
     createElement('div', { 'data-testid': 'payment-status-screen' }),
 }))
 
+vi.mock('@/shared/ui/toast', () => ({ useToast: () => ({ toast: vi.fn() }) }))
+
 // Mock the payment store to provide stable noop actions.
 vi.mock('@/shared/store/paymentStore', () => {
   const state = {

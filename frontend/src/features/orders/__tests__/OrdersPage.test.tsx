@@ -79,7 +79,7 @@ describe('OrdersPage', () => {
 
   it('shows empty state when items is empty', async () => {
     await renderOrdersPage()
-    expect(screen.getByText(/Todavía no realizaste ningún pedido/)).toBeDefined()
+    expect(screen.getByText('Aún no realizaste ningún pedido.')).toBeDefined()
   })
 
   it('shows skeleton while loading', async () => {

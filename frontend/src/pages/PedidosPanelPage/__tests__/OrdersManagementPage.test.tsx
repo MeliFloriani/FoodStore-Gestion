@@ -34,10 +34,22 @@ import { render, screen, waitFor, fireEvent, within, act } from '@testing-librar
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import PedidosPanelPage from '../index'
+import { ConfirmDialogProvider } from '@/shared/ui/confirm-dialog'
+import { ToastProvider } from '@/shared/ui/toast/ToastProvider'
 
 // ---------------------------------------------------------------------------
 // Mock data — list items
 // ---------------------------------------------------------------------------
+
+vi.mock('@/shared/ui/toast', async () => {
+  const tp = await vi.importActual<typeof import('@/shared/ui/toast/ToastProvider')>('@/shared/ui/toast/ToastProvider')
+  const ut = await vi.importActual<typeof import('@/shared/ui/toast/useToast')>('@/shared/ui/toast/useToast')
+  return {
+    ToastProvider: tp.ToastProvider,
+    useToast: ut.useToast,
+    Toast: () => null,
+  }
+})
 
 const mockPedidos = [
   {
@@ -287,7 +299,11 @@ function renderPage() {
   return render(
     <QueryClientProvider client={makeQC()}>
       <MemoryRouter>
-        <PedidosPanelPage />
+        <ToastProvider>
+          <ConfirmDialogProvider>
+            <PedidosPanelPage />
+          </ConfirmDialogProvider>
+        </ToastProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   )
@@ -401,6 +417,7 @@ describe('PedidosPanelPage — Kanban view', () => {
     const card = screen.getByLabelText(`Pedido ${p2Id}`)
     const enPrepBtn = card.querySelector('[aria-label="Avanzar a En Preparación"]') as HTMLButtonElement
     fireEvent.click(enPrepBtn)
+    fireEvent.click(await screen.findByText('Confirmar'))
 
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith({
@@ -440,6 +457,7 @@ describe('PedidosPanelPage — Kanban view', () => {
     const card = screen.getByLabelText(`Pedido ${p1Id}`)
     const confirmBtn = card.querySelector('[aria-label="Avanzar a Confirmado"]') as HTMLButtonElement
     fireEvent.click(confirmBtn)
+    fireEvent.click(await screen.findByText('Confirmar'))
 
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith({
@@ -457,6 +475,7 @@ describe('PedidosPanelPage — Kanban view', () => {
     const card = screen.getByLabelText(`Pedido ${p2Id}`)
     const btn = card.querySelector('[aria-label="Avanzar a En Preparación"]') as HTMLButtonElement
     fireEvent.click(btn)
+    fireEvent.click(await screen.findByText('Confirmar'))
 
     await waitFor(() => {
       expect(screen.getByText(/pedido actualizado a en preparación/i)).toBeDefined()
@@ -473,6 +492,7 @@ describe('PedidosPanelPage — Kanban view', () => {
     const card = screen.getByLabelText(`Pedido ${p2Id}`)
     const btn = card.querySelector('[aria-label="Avanzar a En Preparación"]') as HTMLButtonElement
     fireEvent.click(btn)
+    fireEvent.click(await screen.findByText('Confirmar'))
 
     await waitFor(() => {
       expect(screen.getByText('Transición de estado no permitida desde el estado actual.')).toBeDefined()
@@ -489,6 +509,7 @@ describe('PedidosPanelPage — Kanban view', () => {
     const card = screen.getByLabelText(`Pedido ${p2Id}`)
     const btn = card.querySelector('[aria-label="Avanzar a En Preparación"]') as HTMLButtonElement
     fireEvent.click(btn)
+    fireEvent.click(await screen.findByText('Confirmar'))
 
     await waitFor(() => {
       expect(screen.getByText('Transición de estado no permitida desde el estado actual.')).toBeDefined()
@@ -657,6 +678,7 @@ describe('PedidosPanelPage — Detail modal', () => {
     await act(async () => {
       fireEvent.click(within(dialog).getByLabelText('Avanzar a En Preparación'))
     })
+    fireEvent.click(await screen.findByText('Confirmar'))
 
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith({

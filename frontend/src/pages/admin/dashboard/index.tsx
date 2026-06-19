@@ -51,7 +51,7 @@ export default function AdminDashboardPage() {
             role="tab"
             className={({ isActive }) =>
               [
-                'whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-colors',
+                'inline-flex min-h-[44px] items-center whitespace-nowrap rounded-md px-4 text-sm font-medium transition-colors',
                 isActive
                   ? 'bg-card text-foreground shadow-sm'
                   : 'text-muted-foreground hover:bg-card/50 hover:text-foreground',

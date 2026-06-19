@@ -17,6 +17,8 @@ import {
   ResponsiveContainer,
   type TooltipProps,
 } from 'recharts'
+import { SkeletonRect } from '@/shared/ui/skeleton'
+import { EmptyState } from '@/shared/ui/empty-state'
 import type { PedidoEstadoDistribucionRead } from '../api/metricas.types'
 
 interface PedidosPieChartProps {
@@ -56,17 +58,16 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
 
 export function PedidosPieChart({ data, loading = false }: PedidosPieChartProps) {
   if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center rounded-xl border border-border bg-card">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    )
+    return <SkeletonRect height="h-64" className="rounded-xl" />
   }
 
   if (data.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center rounded-xl border border-border bg-card">
-        <p className="text-sm text-muted-foreground">No hay datos para el período seleccionado.</p>
+        <EmptyState
+          title="Sin datos para el período"
+          description="Ajusta el rango de fechas para ver métricas."
+        />
       </div>
     )
   }

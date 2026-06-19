@@ -69,7 +69,7 @@ describe('useTransitionEstado', () => {
       })
     })
 
-    expect(mockPatch).toHaveBeenCalledWith('/pedidos/order-uuid/estado', {
+    expect(mockPatch).toHaveBeenCalledWith('/api/v1/pedidos/order-uuid/estado', {
       nuevo_estado: 'EN_PREP',
     })
   })

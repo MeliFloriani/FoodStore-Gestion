@@ -15,6 +15,7 @@ import { useState } from 'react'
 import { useForm } from '@tanstack/react-form'
 import type { User } from '@/entities/auth/types'
 import { useUpdateProfile } from './hooks/useUpdateProfile'
+import { useToast } from '@/shared/ui/toast'
 
 type EditProfileFormProps = {
   user: User
@@ -23,6 +24,7 @@ type EditProfileFormProps = {
 export function EditProfileForm({ user }: EditProfileFormProps) {
   const mutation = useUpdateProfile()
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const form = useForm({
     defaultValues: {
@@ -36,9 +38,11 @@ export function EditProfileForm({ user }: EditProfileFormProps) {
         {
           onSuccess: () => {
             setSuccessMessage('Perfil actualizado exitosamente')
+            toast({ variant: 'success', title: 'Perfil actualizado', description: 'Tus datos se guardaron correctamente.' })
           },
           onError: () => {
             setSuccessMessage(null)
+            toast({ variant: 'error', title: 'Error al actualizar', description: 'No se pudo guardar el perfil. Intenta nuevamente.' })
           },
         }
       )
@@ -67,7 +71,7 @@ export function EditProfileForm({ user }: EditProfileFormProps) {
           value={user.email}
           disabled
           aria-label="Email"
-          className="w-full px-3 py-2 border rounded bg-gray-100 text-gray-500 cursor-not-allowed"
+          className="w-full px-3 py-2 border rounded bg-gray-100 text-gray-500 cursor-not-allowed min-h-11"
           readOnly
         />
         <p className="text-xs text-gray-500 mt-1">El email no puede modificarse.</p>
@@ -97,7 +101,7 @@ export function EditProfileForm({ user }: EditProfileFormProps) {
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
               maxLength={80}
-              className="w-full px-3 py-2 border rounded"
+              className="w-full px-3 py-2 border rounded min-h-11"
             />
             {field.state.meta.errors.length > 0 && (
               <p className="text-red-500 text-sm mt-1" role="alert">
@@ -132,7 +136,7 @@ export function EditProfileForm({ user }: EditProfileFormProps) {
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
               maxLength={80}
-              className="w-full px-3 py-2 border rounded"
+              className="w-full px-3 py-2 border rounded min-h-11"
             />
             {field.state.meta.errors.length > 0 && (
               <p className="text-red-500 text-sm mt-1" role="alert">
@@ -161,7 +165,7 @@ export function EditProfileForm({ user }: EditProfileFormProps) {
       <button
         type="submit"
         disabled={mutation.isPending}
-        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-11"
         aria-label="Guardar cambios"
       >
         {mutation.isPending ? 'Guardando...' : 'Guardar cambios'}

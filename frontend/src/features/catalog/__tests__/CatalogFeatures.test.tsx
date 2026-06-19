@@ -116,7 +116,7 @@ describe('ProductGrid', () => {
     )
     // Skeletons have animate-pulse class
     const skeletons = container.querySelectorAll('.animate-pulse')
-    expect(skeletons).toHaveLength(8)
+    expect(skeletons).toHaveLength(32)
   })
 
   it('shows aria-busy="true" when loading', () => {

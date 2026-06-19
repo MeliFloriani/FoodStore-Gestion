@@ -21,7 +21,8 @@ import {
   useTransitionEstado,
   CancelReasonModal,
 } from '@/features/pedido-state-actions'
-import { useToast, ToastList } from '@/shared/ui/Toast'
+import { useToast } from '@/shared/ui/toast'
+import { useConfirm } from '@/shared/ui/confirm-dialog'
 import type { PedidoListItem } from '@/entities/pedido/model/types'
 import {
   ALL_STATES,
@@ -37,6 +38,8 @@ import {
 } from './utils'
 import type { EstadoPedido } from './utils'
 import { PedidoDetailModal } from './PedidoDetailModal'
+import { SkeletonList } from '@/shared/ui/skeleton'
+import { EmptyState } from '@/shared/ui/empty-state'
 
 // ---------------------------------------------------------------------------
 // PedidoCard
@@ -173,7 +176,8 @@ function KanbanColumn({ estado, pedidos, onTransition, onCardClick, pendingPedid
 // ---------------------------------------------------------------------------
 
 export default function PedidosPanelPage() {
-  const { toasts, showToast } = useToast()
+  const { toast } = useToast()
+  const { confirm } = useConfirm()
 
   // Fetch ALL pedidos (large page for Kanban — no per-column pagination)
   const { data, isLoading, isError, error, refetch } = useAdminOrders({ size: 100 })
@@ -218,12 +222,18 @@ export default function PedidosPanelPage() {
   // Transition handler
   // ---------------------------------------------------------------------------
 
-  function handleTransition(pedidoId: string, nuevoEstado: EstadoPedido) {
+  async function handleTransition(pedidoId: string, nuevoEstado: EstadoPedido) {
     if (nuevoEstado === 'CANCELADO') {
       // Open cancel modal to collect motivo (RN-05: motivo required)
       setCancelModal({ pedidoId, open: true })
       return
     }
+    const ok = await confirm({
+      title: `¿Avanzar a ${ESTADO_LABELS[nuevoEstado]}?`,
+      description: `El pedido pasará al estado "${ESTADO_LABELS[nuevoEstado]}".`,
+      confirmLabel: 'Confirmar',
+    })
+    if (!ok) return
     void executeTransition(pedidoId, nuevoEstado, undefined)
   }
 
@@ -238,10 +248,10 @@ export default function PedidosPanelPage() {
         pedidoId,
         request: { nuevo_estado: nuevoEstado, motivo: motivo ?? null },
       })
-      showToast(`Pedido actualizado a ${ESTADO_LABELS[nuevoEstado]}`, 'success')
+      toast({ variant: 'success', title: `Pedido actualizado a ${ESTADO_LABELS[nuevoEstado]}` })
     } catch (err: unknown) {
       const message = extractErrorMessage(err)
-      showToast(message, 'error')
+      toast({ variant: 'error', title: message })
     } finally {
       setPendingPedidoId(null)
     }
@@ -288,22 +298,18 @@ export default function PedidosPanelPage() {
 
       {/* Loading skeleton */}
       {isLoading && (
-        <div className="overflow-x-auto">
-          <div className="flex gap-4 pb-4">
-            {ALL_STATES.map((estado) => (
-              <div key={estado} className="flex min-w-[220px] flex-col gap-3">
-                <div className="h-10 animate-pulse rounded-md bg-muted" />
-                {[1, 2].map((i) => (
-                  <div key={i} className="h-28 animate-pulse rounded-lg bg-muted" />
-                ))}
-              </div>
-            ))}
-          </div>
+        <div className="py-4">
+          <SkeletonList rows={8} />
         </div>
       )}
 
+      {/* Empty state */}
+      {!isLoading && !isError && items.length === 0 && (
+        <EmptyState title="Sin pedidos" description="No hay pedidos que coincidan con los filtros." />
+      )}
+
       {/* Kanban board */}
-      {!isLoading && !isError && (
+      {!isLoading && !isError && items.length > 0 && (
         <div className="overflow-x-auto">
           <div className="flex gap-4 pb-4" role="list" aria-label="Tablero Kanban de pedidos">
             {ALL_STATES.map((estado) => (
@@ -338,8 +344,7 @@ export default function PedidosPanelPage() {
         title="Cancelar pedido"
       />
 
-      {/* Toast notifications */}
-      <ToastList toasts={toasts} />
+
     </div>
   )
 }

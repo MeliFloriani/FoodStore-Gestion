@@ -1,19 +1,19 @@
-/**
- * Tests for EditUserRolesModal component (Change 21).
- *
- * Covers:
- *   - Pre-checks the user's currently assigned roles.
- *   - Shows all 4 role checkboxes.
- *   - Shows validation error when no roles selected.
- *   - Renders submit and cancel buttons.
- *   - Has accessible dialog.
- */
-
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { EditUserRolesModal } from '../ui/EditUserRolesModal'
+import { http } from '@/shared/api/http'
 import type { UsuarioAdminRead } from '../types'
+
+vi.mock('@/shared/api/http', () => ({
+  http: {
+    patch: vi.fn(),
+    put: vi.fn(),
+    post: vi.fn(),
+    get: vi.fn(),
+    delete: vi.fn(),
+  },
+}))
 
 const adminUser: UsuarioAdminRead = {
   id: 'user-admin-1',
@@ -38,6 +38,10 @@ function renderWithQuery(component: React.ReactElement) {
 }
 
 describe('EditUserRolesModal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('pre-checks current user roles', () => {
     renderWithQuery(
       <EditUserRolesModal user={adminUser} onClose={vi.fn()} onSuccess={vi.fn()} />,
@@ -65,11 +69,9 @@ describe('EditUserRolesModal', () => {
     renderWithQuery(
       <EditUserRolesModal user={adminUser} onClose={vi.fn()} onSuccess={vi.fn()} />,
     )
-    // Deselect all roles
     fireEvent.click(screen.getByRole('checkbox', { name: /ADMIN/i }))
     fireEvent.click(screen.getByRole('checkbox', { name: /CLIENT/i }))
 
-    // Attempt to submit
     fireEvent.click(screen.getByRole('button', { name: /guardar roles/i }))
 
     expect(screen.getByText(/debe seleccionar al menos un rol/i)).toBeInTheDocument()
@@ -97,5 +99,80 @@ describe('EditUserRolesModal', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: /cancelar/i }))
     expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('toggles a role on and off', () => {
+    renderWithQuery(
+      <EditUserRolesModal user={adminUser} onClose={vi.fn()} onSuccess={vi.fn()} />,
+    )
+    const stockCheckbox = screen.getByRole('checkbox', { name: /STOCK/i })
+    expect(stockCheckbox).not.toBeChecked()
+
+    fireEvent.click(stockCheckbox)
+    expect(stockCheckbox).toBeChecked()
+
+    fireEvent.click(stockCheckbox)
+    expect(stockCheckbox).not.toBeChecked()
+  })
+
+  it('submits valid roles and calls onSuccess', async () => {
+    vi.mocked(http.put).mockResolvedValue({ data: adminUser })
+    const onClose = vi.fn()
+    const onSuccess = vi.fn()
+    renderWithQuery(
+      <EditUserRolesModal user={adminUser} onClose={onClose} onSuccess={onSuccess} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /guardar roles/i }))
+
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledOnce()
+    })
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('shows LAST_ADMIN_PROTECTED error inline', async () => {
+    vi.mocked(http.put).mockRejectedValue({
+      response: { data: { code: 'LAST_ADMIN_PROTECTED' } },
+    })
+    const onClose = vi.fn()
+    const onSuccess = vi.fn()
+    renderWithQuery(
+      <EditUserRolesModal user={adminUser} onClose={onClose} onSuccess={onSuccess} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /guardar roles/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/único administrador/i)).toBeInTheDocument()
+    })
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('shows Guardando... when mutation is pending', async () => {
+    vi.mocked(http.put).mockImplementation(() => new Promise(() => {}))
+    renderWithQuery(
+      <EditUserRolesModal user={adminUser} onClose={vi.fn()} onSuccess={vi.fn()} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /guardar roles/i }))
+
+    expect(await screen.findByText('Guardando...')).toBeInTheDocument()
+    const submitBtn = screen.getByText('Guardando...').closest('button')
+    expect(submitBtn).toBeDisabled()
+  })
+
+  it('clears validation error when a role is toggled', () => {
+    renderWithQuery(
+      <EditUserRolesModal user={adminUser} onClose={vi.fn()} onSuccess={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByRole('checkbox', { name: /ADMIN/i }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /CLIENT/i }))
+    fireEvent.click(screen.getByRole('button', { name: /guardar roles/i }))
+    expect(screen.getByText(/debe seleccionar al menos un rol/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /STOCK/i }))
+    expect(screen.queryByText(/debe seleccionar al menos un rol/i)).not.toBeInTheDocument()
   })
 })

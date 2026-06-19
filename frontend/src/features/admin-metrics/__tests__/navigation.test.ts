@@ -50,11 +50,11 @@ describe('Navigation — admin-metrics path correction (Change 23)', () => {
     expect(paths).not.toContain('/admin/metricas')
   })
 
-  it('filterNavItems with ADMIN role returns 5 items (post pre-Change-24 surgical fix)', () => {
-    // Stock items removed (placeholder); cart/orders/addresses are now CLIENT-only.
-    // ADMIN sees: /catalog, /profile, /pedidos-panel, /admin/users, /admin/metricas.
+  it('filterNavItems with ADMIN role returns 8 items (stock CRUD restored)', () => {
+    // ADMIN sees: catalog, profile, stock-ingredients, stock-categories, stock-products,
+    // pedidos-panel, admin-users, admin/metricas.
     const filtered = filterNavItems(NAVIGATION_ITEMS, ['ADMIN'])
-    expect(filtered).toHaveLength(5)
+    expect(filtered).toHaveLength(8)
   })
 
   it('filterNavItems with ADMIN role includes /admin/users (unchanged)', () => {

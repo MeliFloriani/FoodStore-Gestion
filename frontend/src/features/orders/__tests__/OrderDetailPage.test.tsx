@@ -16,6 +16,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
 import OrderDetailPage from '@/pages/OrderDetailPage'
 import type { PedidoDetail } from '@/entities/pedido/model/types'
+import { ConfirmDialogProvider } from '@/shared/ui/confirm-dialog'
+import { ToastProvider } from '@/shared/ui/toast/ToastProvider'
 
 // ---------------------------------------------------------------------------
 // Mock entire @/features/orders module
@@ -98,11 +100,19 @@ describe('OrderDetailPage', () => {
           MemoryRouter,
           { initialEntries: [`/orders/${pedidoId}`] },
           createElement(
-            Routes,
+            ToastProvider,
             null,
-            createElement(Route, { path: '/orders/:id', element: createElement(OrderDetailPage) }),
-            createElement(Route, { path: '/403', element: createElement('div', null, 'ForbiddenPage') }),
-            createElement(Route, { path: '/404', element: createElement('div', null, 'NotFoundPage') }),
+            createElement(
+              ConfirmDialogProvider,
+              null,
+              createElement(
+                Routes,
+                null,
+                createElement(Route, { path: '/orders/:id', element: createElement(OrderDetailPage) }),
+                createElement(Route, { path: '/403', element: createElement('div', null, 'ForbiddenPage') }),
+                createElement(Route, { path: '/404', element: createElement('div', null, 'NotFoundPage') }),
+              ),
+            ),
           ),
         ),
       ),

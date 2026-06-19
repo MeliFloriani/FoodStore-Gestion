@@ -18,6 +18,7 @@
 
 import { useState } from 'react'
 import { createPayment } from '@/entities/pago'
+import { useToast } from '@/shared/ui/toast'
 
 interface PayWithMercadoPagoButtonProps {
   /** UUID of the order to pay */
@@ -44,6 +45,7 @@ export function PayWithMercadoPagoButton({
 }: PayWithMercadoPagoButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const handleClick = async () => {
     if (isLoading) return
@@ -72,6 +74,7 @@ export function PayWithMercadoPagoButton({
       }
 
       onBeforeRedirect?.()
+      toast({ variant: 'info', title: 'Redirigiendo a MercadoPago...' })
       window.location.href = redirectUrl
     } catch (error) {
       setIsLoading(false)
@@ -82,6 +85,7 @@ export function PayWithMercadoPagoButton({
         (axiosError?.message as string) ??
         'MP_PREFERENCE_ERROR'
       setErrorMessage('No se pudo iniciar el pago. Por favor intentá de nuevo.')
+      toast({ variant: 'error', title: 'No se pudo iniciar el pago', description: 'Intentá de nuevo.' })
       onError?.(code)
     }
   }

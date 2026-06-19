@@ -20,6 +20,8 @@ import {
   ResponsiveContainer,
   type TooltipProps,
 } from 'recharts'
+import { SkeletonRect } from '@/shared/ui/skeleton'
+import { EmptyState } from '@/shared/ui/empty-state'
 import type { ProductoTopRead } from '../api/metricas.types'
 
 interface ProductosBarChartProps {
@@ -57,17 +59,16 @@ function CustomTooltip({ active, payload, label }: TooltipProps<number, string>)
 
 export function ProductosBarChart({ data, loading = false }: ProductosBarChartProps) {
   if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center rounded-xl border border-border bg-card">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    )
+    return <SkeletonRect height="h-64" className="rounded-xl" />
   }
 
   if (data.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center rounded-xl border border-border bg-card">
-        <p className="text-sm text-muted-foreground">No hay datos para el período seleccionado.</p>
+        <EmptyState
+          title="Sin datos para el período"
+          description="Ajusta el rango de fechas para ver métricas."
+        />
       </div>
     )
   }
@@ -77,33 +78,35 @@ export function ProductosBarChart({ data, loading = false }: ProductosBarChartPr
   return (
     <div className="rounded-xl border border-border bg-card p-5">
       <h3 className="mb-4 text-sm font-semibold text-foreground">Top Productos Más Vendidos</h3>
-      <ResponsiveContainer width="100%" height={chartHeight}>
-        <BarChart
-          layout="vertical"
-          data={data}
-          margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
-          <XAxis
-            type="number"
-            tick={{ fontSize: 11 }}
-            className="fill-muted-foreground"
-          />
-          <YAxis
-            type="category"
-            dataKey="nombre_snapshot"
-            width={140}
-            tick={{ fontSize: 11 }}
-            className="fill-muted-foreground"
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <Bar
-            dataKey="cantidad_vendida"
-            fill="hsl(220, 70%, 50%)"
-            radius={[0, 4, 4, 0]}
-          />
-        </BarChart>
-      </ResponsiveContainer>
+      <div className="overflow-x-auto">
+        <ResponsiveContainer width="100%" height={chartHeight}>
+          <BarChart
+            layout="vertical"
+            data={data}
+            margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
+            <XAxis
+              type="number"
+              tick={{ fontSize: 11 }}
+              className="fill-muted-foreground"
+            />
+            <YAxis
+              type="category"
+              dataKey="nombre_snapshot"
+              width={140}
+              tick={{ fontSize: 11 }}
+              className="fill-muted-foreground"
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Bar
+              dataKey="cantidad_vendida"
+              fill="hsl(220, 70%, 50%)"
+              radius={[0, 4, 4, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }

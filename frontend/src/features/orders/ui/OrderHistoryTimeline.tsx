@@ -16,6 +16,7 @@
 
 import { useHistorialPedido } from '@/features/pedido-state-actions'
 import type { HistorialEstadoPedidoRead } from '@/entities/pedido/model/historialTypes'
+import { SkeletonLine, SkeletonCircle } from '@/shared/ui/skeleton'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -86,12 +87,12 @@ function TimelineSkeleton() {
       {[0, 1, 2].map((i) => (
         <div key={i} className="flex gap-3 pb-4">
           <div className="flex flex-col items-center">
-            <div className="h-3 w-3 animate-pulse rounded-full bg-muted" />
-            {i < 2 && <div className="mt-1 h-12 w-0.5 animate-pulse bg-muted" />}
+            <SkeletonCircle size="h-3 w-3" />
+            {i < 2 && <SkeletonLine width="w-0.5" className="mt-1 h-12" />}
           </div>
           <div className="flex-1 space-y-1.5 pb-2">
-            <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-            <div className="h-3 w-24 animate-pulse rounded bg-muted" />
+            <SkeletonLine width="w-32" className="h-4" />
+            <SkeletonLine width="w-24" className="h-3" />
           </div>
         </div>
       ))}

@@ -10,6 +10,8 @@ import { http } from '@/shared/api/http'
 import { AUTH_LOGOUT } from '@/shared/api/endpoints'
 import type { User } from '@/entities/auth/types'
 
+vi.mock('@/shared/ui/toast', () => ({ useToast: () => ({ toast: vi.fn() }) }))
+
 function makeUser(roles: string[]): User {
   return {
     id: '550e8400-e29b-41d4-a716-446655440000',

@@ -19,6 +19,8 @@ import {
   ResponsiveContainer,
   type TooltipProps,
 } from 'recharts'
+import { SkeletonRect } from '@/shared/ui/skeleton'
+import { EmptyState } from '@/shared/ui/empty-state'
 import type { VentasPeriodoRead } from '../api/metricas.types'
 
 interface VentasLineChartProps {
@@ -66,17 +68,16 @@ function CustomTooltip({ active, payload, label }: TooltipProps<number, string>)
 
 export function VentasLineChart({ data, loading = false }: VentasLineChartProps) {
   if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center rounded-xl border border-border bg-card">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    )
+    return <SkeletonRect height="h-64" className="rounded-xl" />
   }
 
   if (data.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center rounded-xl border border-border bg-card">
-        <p className="text-sm text-muted-foreground">No hay datos para el período seleccionado.</p>
+        <EmptyState
+          title="Sin datos para el período"
+          description="Ajusta el rango de fechas para ver métricas."
+        />
       </div>
     )
   }
@@ -91,31 +92,33 @@ export function VentasLineChart({ data, loading = false }: VentasLineChartProps)
   return (
     <div className="rounded-xl border border-border bg-card p-5">
       <h3 className="mb-4 text-sm font-semibold text-foreground">Evolución de Ventas</h3>
-      <ResponsiveContainer width="100%" height={240}>
-        <LineChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-          <XAxis
-            dataKey="periodo"
-            tick={{ fontSize: 11 }}
-            className="fill-muted-foreground"
-          />
-          <YAxis
-            tickFormatter={(v: number) => formatARS(v)}
-            tick={{ fontSize: 11 }}
-            className="fill-muted-foreground"
-            width={80}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <Line
-            type="monotone"
-            dataKey="monto_num"
-            stroke="hsl(var(--primary, 222 47% 11%))"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <div className="overflow-x-auto">
+        <ResponsiveContainer width="100%" height={240}>
+          <LineChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+            <XAxis
+              dataKey="periodo"
+              tick={{ fontSize: 11 }}
+              className="fill-muted-foreground"
+            />
+            <YAxis
+              tickFormatter={(v: number) => formatARS(v)}
+              tick={{ fontSize: 11 }}
+              className="fill-muted-foreground"
+              width={80}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Line
+              type="monotone"
+              dataKey="monto_num"
+              stroke="hsl(var(--primary, 222 47% 11%))"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }

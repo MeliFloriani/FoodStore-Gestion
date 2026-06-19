@@ -35,6 +35,7 @@ function processQueue(error: unknown, token: string | null): void {
 
 export const http = axios.create({
   baseURL: env.VITE_API_BASE_URL,
+  timeout: 15_000, // 15s — evita spinners infinitos si el backend no responde
   headers: {
     'Content-Type': 'application/json',
   },

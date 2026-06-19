@@ -158,105 +158,105 @@ This change is PROPOSE-ONLY. Implementation begins during Sprint 8 apply.
 
 ### Change 13 — `customer-profile-management`
 
-- [ ] Replace inline skeleton/loading in `pages/profile/` with `<SkeletonRect height="h-64" />` or structured skeleton during data fetch
-- [ ] Connect `useToast` to profile update success/error feedback
-- [ ] Connect `useToast` to password change success/error feedback
-- [ ] Replace `window.confirm` on password change form (if present) with `useConfirm`
-- [ ] Audit `pages/profile/` at 375px — verify form inputs meet 44px touch target
+- [x] Replace inline skeleton/loading in `pages/profile/` with `<SkeletonRect height="h-64" />` or structured skeleton during data fetch
+- [x] Connect `useToast` to profile update success/error feedback
+- [x] Connect `useToast` to password change success/error feedback
+- [x] Replace `window.confirm` on password change form (if present) with `useConfirm`
+- [x] Audit `pages/profile/` at 375px — verify form inputs meet 44px touch target
 
 ---
 
 ### Change 14 — `delivery-addresses-management`
 
-- [ ] Replace inline skeleton in addresses list with `<SkeletonList rows={3} />`
-- [ ] Add `<EmptyState title="Sin direcciones guardadas" description="Agrega una dirección para el envío." action={<AddAddressButton />} />` when list is empty
-- [ ] Replace `window.confirm` in address delete action with `useConfirm({ variant: 'destructive', title: '¿Eliminar dirección?' })`
-- [ ] Connect `useToast` to address create/update/delete/set-principal feedback
-- [ ] Audit `pages/addresses/` at 375px — verify address cards stack correctly
+- [x] Replace inline skeleton in addresses list with `<SkeletonList rows={3} />`
+- [x] Add `<EmptyState title="Sin direcciones guardadas" description="Agrega una dirección para el envío." action={<AddAddressButton />} />` when list is empty
+- [x] Replace `window.confirm` in address delete action with `useConfirm({ variant: 'destructive', title: '¿Eliminar dirección?' })`
+- [x] Connect `useToast` to address create/update/delete/set-principal feedback
+- [x] Audit `pages/addresses/` at 375px — verify address cards stack correctly
 
 ---
 
 ### Change 15 — `shopping-cart-clientside`
 
-- [ ] Add `<EmptyState title="Tu carrito está vacío" description="Agrega productos para continuar." action={<Link to="/catalog">Ver catálogo</Link>} />` when cart has zero items
-- [ ] Replace `window.confirm` in cart item remove / clear-cart actions with `useConfirm` (if applicable)
-- [ ] Connect `useToast` to "Producto agregado al carrito" on add-to-cart action
-- [ ] Audit cart panel/drawer at 375px — verify item list scrolls correctly and checkout button meets 44px touch target
+- [x] Add `<EmptyState title="Tu carrito está vacío" description="Agrega productos para continuar." action={<Link to="/catalog">Ver catálogo</Link>} />` when cart has zero items
+- [x] Replace `window.confirm` in cart item remove / clear-cart actions with `useConfirm` (if applicable)
+- [x] Connect `useToast` to "Producto agregado al carrito" on add-to-cart action
+- [x] Audit cart panel/drawer at 375px — verify item list scrolls correctly and checkout button meets 44px touch target
 
 ---
 
 ### Change 16 — `pre-checkout-validations`
 
-- [ ] Connect `useToast` to validation warning feedback (price changed, stock insufficient)
-- [ ] Replace any inline alert/warning div with toast `warning` variant for stock or price change notifications
-- [ ] Audit `pages/checkout/` validation step at 375px
+- [x] Connect `useToast` to validation warning feedback (price changed, stock insufficient)
+- [x] ~~Replace any inline alert/warning div with toast `warning` variant~~ — DECISION: kept inline alerts (UX-critical persistent feedback) + supplemented with toasts
+- [x] Audit `pages/checkout/` validation step at 375px — action buttons at 44px (py-3)
 
 ---
 
 ### Change 17 — `order-creation-with-snapshots`
 
-- [ ] Replace inline loading/spinner during order submission with a full-page skeleton or overlay
-- [ ] Connect `useToast` to order creation error feedback (network error, validation failure)
-- [ ] Audit `pages/checkout/` at 375px — verify address selection and summary reflow correctly
+- [x] Replace inline loading/spinner during order submission with a skeleton overlay (SkeletonLine + SkeletonRect)
+- [x] Connect `useToast` to order creation error feedback (network error, validation failure)
+- [x] Audit `pages/checkout/` at 375px — verify address selection and summary reflow correctly
 
 ---
 
 ### Change 18 — `order-state-machine-transitions`
 
-- [ ] Replace `window.confirm` in all state-transition actions (advance state, cancel order) with `useConfirm`; use `variant: 'destructive'` for cancel with motivo
-- [ ] Connect `useToast` to state transition success (e.g. "Pedido marcado como EN PREPARACIÓN") and error feedback
-- [ ] Audit `pages/pedidos-panel/` at 375px — verify order list and action buttons reflow correctly and meet 44px touch target
+- [x] Replace `window.confirm` in all state-transition actions (advance state, cancel order) with `useConfirm`; use `variant: 'destructive'` for cancel with motivo
+- [x] Connect `useToast` to state transition success (e.g. "Pedido marcado como EN PREPARACIÓN") and error feedback
+- [x] Audit `pages/pedidos-panel/` at 375px — verify order list and action buttons reflow correctly and meet 44px touch target
 
 ---
 
 ### Change 19 — `payments-mercadopago-integration`
 
-- [ ] Connect `useToast` to payment initiation feedback (success redirect, error on preference creation)
-- [ ] Connect `useToast` to `/checkout/return` page feedback (payment approved, rejected, pending)
-- [ ] Audit `pages/checkout/return/` at 375px — verify status cards and CTA buttons meet touch targets
+- [x] Connect `useToast` to payment initiation feedback (success redirect, error on preference creation)
+- [x] Connect `useToast` to `/checkout/return` page feedback (payment approved, rejected, pending)
+- [x] Audit `pages/checkout/return/` at 375px — verify status cards and CTA buttons meet touch targets
 
 ---
 
 ### Change 20 — `orders-visualization`
 
-- [ ] Replace inline skeleton in orders history list (`pages/orders/`) with `<SkeletonList rows={5} />`
-- [ ] Replace inline skeleton in order detail page with structured skeleton (header rect + timeline lines)
-- [ ] Add `<EmptyState title="Sin pedidos" description="Aún no realizaste ningún pedido." action={<Link to="/catalog">Ver catálogo</Link>} />` when CLIENT order list is empty
-- [ ] Replace inline skeleton in `widgets/orders-management-panel/` with `<SkeletonList rows={8} />`
-- [ ] Add `<EmptyState title="Sin pedidos" description="No hay pedidos que coincidan con los filtros." />` in management panel when filtered list is empty
-- [ ] Audit `pages/orders/` and `pages/orders/[id]/` at 375px — verify timeline and snapshot details scroll correctly
+- [x] Replace inline skeleton in orders history list (`pages/orders/`) with `<SkeletonList rows={5} />`
+- [x] Replace inline skeleton in order detail page with structured skeleton (header rect + timeline lines)
+- [x] Add `<EmptyState title="Sin pedidos" description="Aún no realizaste ningún pedido." action={<Link to="/catalog">Ver catálogo</Link>} />` when CLIENT order list is empty
+- [x] Replace inline skeleton in `widgets/orders-management-panel/` with `<SkeletonList rows={8} />`
+- [x] Add `<EmptyState title="Sin pedidos" description="No hay pedidos que coincidan con los filtros." />` in management panel when filtered list is empty
+- [x] Audit `pages/orders/` and `pages/orders/[id]/` at 375px — verify timeline and snapshot details scroll correctly
 
 ---
 
 ### Change 21 — `admin-users-management`
 
-- [ ] Replace inline skeleton in admin users list with `<SkeletonList rows={6} />`
-- [ ] Add `<EmptyState title="Sin usuarios" description="No hay usuarios registrados." />` when list is empty
-- [ ] Replace `window.confirm` in user deactivation action with `useConfirm({ variant: 'destructive', title: '¿Desactivar usuario?' })`
-- [ ] Connect `useToast` to user edit/deactivate success and error feedback
-- [ ] Audit `pages/admin/usuarios/` at 375px — verify table/card list reflows without horizontal overflow
+- [x] Replace inline skeleton in admin users list with `<SkeletonList rows={6} />`
+- [x] Add `<EmptyState title="Sin usuarios" description="No hay usuarios registrados." />` when list is empty
+- [x] Replace `window.confirm` in user deactivation action with `useConfirm({ variant: 'destructive', title: '¿Desactivar usuario?' })`
+- [x] Connect `useToast` to user edit/deactivate success and error feedback
+- [x] Audit `pages/admin/usuarios/` at 375px — verify table/card list reflows without horizontal overflow
 
 ---
 
 ### Change 22 — `admin-catalog-orders-aggregated-permissions`
 
-- [ ] Audit all admin-embedded views (products, stock, orders from admin tabs) — verify they inherit skeleton/empty-state primitives from Changes 09–20 rollout tasks
-- [ ] Verify ADMIN navigation items meet 44px touch targets in mobile view
-- [ ] Connect `useToast` to any ADMIN-level action feedback not already covered in per-feature rollout tasks
+- [x] Audit all admin-embedded views (products, stock, orders from admin tabs) — verify they inherit skeleton/empty-state primitives from Changes 09–20 rollout tasks
+- [x] Verify ADMIN navigation items meet 44px touch targets in mobile view
+- [x] Connect `useToast` to any ADMIN-level action feedback not already covered in per-feature rollout tasks
 
 ---
 
 ### Change 23 — `admin-metrics-dashboard`
 
-- [ ] Replace inline skeleton/spinner in KPI cards during `useMetricasResumen` `isPending` with `<SkeletonRect height="h-20" />` per card
-- [ ] Replace inline skeleton/spinner in chart components during `isPending` with `<SkeletonRect height="h-64" />`
-- [ ] Add `<EmptyState title="Sin datos para el período" description="Ajusta el rango de fechas para ver métricas." />` when metrics return empty arrays
-- [ ] Connect `useToast` to date range filter validation errors (invalid date range)
-- [ ] Audit `pages/admin/metricas/` at 375px — verify charts use horizontal scroll wrapper on mobile; verify KPI grid stacks to single column
+- [x] Replace inline skeleton/spinner in KPI cards during `useMetricasResumen` `isPending` with `<SkeletonRect height="h-20" />` per card
+- [x] Replace inline skeleton/spinner in chart components during `isPending` with `<SkeletonRect height="h-64" />`
+- [x] Add `<EmptyState title="Sin datos para el período" description="Ajusta el rango de fechas para ver métricas." />` when metrics return empty arrays
+- [x] Connect `useToast` to date range filter validation errors (invalid date range)
+- [x] Audit `pages/admin/metricas/` at 375px — verify charts use horizontal scroll wrapper on mobile; verify KPI grid stacks to single column
 
 ---
 
 ## 9. Specs Validation
 
-- [ ] Run `openspec validate ui-ux-design-system --strict` and confirm PASS
-- [ ] Run `openspec status --change "ui-ux-design-system" --json` and confirm `isComplete: true`
+- [x] Run `openspec validate ui-ux-design-system --strict` and confirm PASS
+- [x] Run `openspec status --change "ui-ux-design-system" --json` and confirm `isComplete: true`

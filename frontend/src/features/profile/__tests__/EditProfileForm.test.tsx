@@ -25,6 +25,12 @@ vi.mock('@/shared/api/http', () => ({
   },
 }))
 
+// Mock toast to avoid ToastProvider context requirement
+const mockToast = vi.fn()
+vi.mock('@/shared/ui/toast', () => ({
+  useToast: () => ({ toast: mockToast }),
+}))
+
 const mockUser: User = {
   id: '123e4567-e89b-12d3-a456-426614174000',
   nombre: 'Juan',

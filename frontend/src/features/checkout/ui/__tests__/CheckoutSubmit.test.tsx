@@ -2,7 +2,7 @@
  * Tests for CheckoutSubmit component (Change 17).
  *
  * Tasks 13.5-13.9:
- *   13.6 — isPending=true → button disabled, spinner visible
+ *   13.6 — isPending=true → skeleton overlay visible, no button
  *   13.7 — isSuccess=true → confirmation message shown
  *   13.8 — isError=true with INSUFFICIENT_STOCK → readable error message
  *   13.9 — isError=true with PAYMENT_METHOD_INVALID → readable error message
@@ -12,6 +12,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+
+// Mock toast to avoid context requirement
+vi.mock('@/shared/ui/toast', () => ({
+  useToast: () => ({ toast: vi.fn() }),
+}))
 
 // ---------------------------------------------------------------------------
 // Mock useCreateOrder hook
@@ -72,18 +77,22 @@ describe('CheckoutSubmit', () => {
   }
 
   // -------------------------------------------------------------------------
-  // Task 13.6: isPending → button disabled + spinner
+  // Task 13.6: isPending → skeleton overlay, no button
   // -------------------------------------------------------------------------
-  it('Task 13.6: button is disabled and shows spinner when isPending=true', async () => {
+  it('Task 13.6: shows skeleton overlay when isPending=true', async () => {
     mockIsPending = true
     await renderComponent()
 
-    const button = screen.getByRole('button')
-    expect(button).toBeDisabled()
-    expect(button).toHaveAttribute('aria-busy', 'true')
+    // Skeleton overlay with aria-busy
+    const overlay = screen.getByRole('generic', { busy: true })
+    expect(overlay).toBeInTheDocument()
+    expect(overlay).toHaveAttribute('aria-busy', 'true')
 
-    // Spinner text or accessible spinner
-    expect(screen.getByText('Enviando...')).toBeTruthy()
+    // Skeleton text
+    expect(screen.getByText('Procesando pedido...')).toBeTruthy()
+
+    // No button rendered when pending
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
   it('Task 13.6b: button is enabled and shows "Confirmar pedido" when not pending', async () => {

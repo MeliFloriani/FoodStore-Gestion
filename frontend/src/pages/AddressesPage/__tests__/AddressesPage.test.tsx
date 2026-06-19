@@ -19,6 +19,7 @@ import { MemoryRouter } from 'react-router-dom'
 import AxiosMockAdapter from 'axios-mock-adapter'
 import { http } from '@/shared/api/http'
 import type { DireccionEntrega } from '@/entities/direccion-entrega'
+import { ConfirmDialogProvider } from '@/shared/ui/confirm-dialog'
 
 // ---------------------------------------------------------------------------
 // Auth store mock
@@ -70,7 +71,9 @@ function makeWrapper(queryClient: QueryClient) {
     createElement(
       MemoryRouter,
       {},
-      createElement(QueryClientProvider, { client: queryClient }, children),
+      createElement(ConfirmDialogProvider, {},
+        createElement(QueryClientProvider, { client: queryClient }, children),
+      ),
     )
 }
 
@@ -122,7 +125,7 @@ describe('AddressesPage', () => {
     render(createElement(AddressesPage), { wrapper: makeWrapper(queryClient) })
 
     await waitFor(() => {
-      expect(screen.getByText(/no tenés direcciones guardadas/i)).toBeInTheDocument()
+      expect(screen.getByText(/sin direcciones guardadas/i)).toBeInTheDocument()
     })
     // There are two "Agregar dirección" buttons (header + empty state CTA) — verify at least one exists
     expect(screen.getAllByText(/agregar dirección/i).length).toBeGreaterThanOrEqual(1)
@@ -182,10 +185,10 @@ describe('AddressesPage', () => {
     // Dialog should appear
     let dialog: HTMLElement
     await waitFor(() => {
-      dialog = screen.getByRole('dialog', { name: /confirmar eliminación/i })
+      dialog = screen.getByRole('alertdialog', { name: /eliminar dirección/i })
       expect(dialog).toBeInTheDocument()
     })
-    expect(screen.getByText(/esta acción no se puede deshacer/i)).toBeInTheDocument()
+    expect(screen.getByText(/no se puede deshacer/i)).toBeInTheDocument()
     // Scope button queries to the dialog to avoid ambiguity with background buttons
     expect(within(dialog!).getByRole('button', { name: /cancelar/i })).toBeInTheDocument()
     expect(within(dialog!).getByRole('button', { name: /eliminar/i })).toBeInTheDocument()
@@ -210,7 +213,7 @@ describe('AddressesPage', () => {
     fireEvent.click(deleteButton)
 
     await waitFor(() => {
-      expect(screen.getByRole('dialog', { name: /confirmar eliminación/i })).toBeInTheDocument()
+      expect(screen.getByRole('alertdialog', { name: /eliminar dirección/i })).toBeInTheDocument()
     })
 
     // Click cancel
@@ -219,7 +222,7 @@ describe('AddressesPage', () => {
 
     // Dialog closed
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: /confirmar eliminación/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('alertdialog', { name: /eliminar dirección/i })).not.toBeInTheDocument()
     })
 
     // No delete API call made

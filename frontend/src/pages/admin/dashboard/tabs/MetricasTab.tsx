@@ -10,7 +10,7 @@
  * Defaults: desde = today - 30 days, hasta = today, granularidad = 'dia'.
  */
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   DateRangeFilter,
   GranularitySelector,
@@ -23,6 +23,7 @@ import {
   useMetricasProductosTop,
   useMetricasPedidosPorEstado,
 } from '@/features/admin-metrics'
+import { useToast } from '@/shared/ui/toast'
 import type { Granularidad } from '@/features/admin-metrics'
 
 function getDefaultDesde(): string {
@@ -40,6 +41,8 @@ export function MetricasTab() {
   const [hasta, setHasta] = useState<string>(getDefaultHasta)
   const [granularidad, setGranularidad] = useState<Granularidad>('dia')
 
+  const { toast } = useToast()
+
   const dateParams = {
     desde: desde || undefined,
     hasta: hasta || undefined,
@@ -50,10 +53,14 @@ export function MetricasTab() {
   const productosTop = useMetricasProductosTop({ ...dateParams, top: 10 })
   const pedidosPorEstado = useMetricasPedidosPorEstado(dateParams)
 
-  function handleDateChange(newDesde: string, newHasta: string) {
+  const handleDateChange = useCallback((newDesde: string, newHasta: string) => {
+    if (newDesde && newHasta && newDesde > newHasta) {
+      toast({ variant: 'warning', title: 'Rango de fechas inválido', description: 'La fecha desde no puede ser posterior a la fecha hasta.' })
+      return
+    }
     setDesde(newDesde)
     setHasta(newHasta)
-  }
+  }, [toast])
 
   return (
     <div className="space-y-6">
@@ -67,7 +74,7 @@ export function MetricasTab() {
       <KpiGrid data={resumen.data} loading={resumen.isLoading} />
 
       {/* Charts grid */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 overflow-x-auto lg:grid-cols-2">
         <VentasLineChart
           data={ventas.data ?? []}
           loading={ventas.isLoading}
@@ -79,10 +86,12 @@ export function MetricasTab() {
       </div>
 
       {/* Top products — full width */}
-      <ProductosBarChart
-        data={productosTop.data ?? []}
-        loading={productosTop.isLoading}
-      />
+      <div className="overflow-x-auto">
+        <ProductosBarChart
+          data={productosTop.data ?? []}
+          loading={productosTop.isLoading}
+        />
+      </div>
     </div>
   )
 }

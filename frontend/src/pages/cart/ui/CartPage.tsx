@@ -10,6 +10,8 @@
 
 import { Link, useNavigate } from 'react-router-dom'
 import { useCartStore, buildItemKey } from '@/entities/cart'
+import { EmptyState } from '@/shared/ui/empty-state'
+import { useConfirm } from '@/shared/ui/confirm-dialog'
 
 function formatCurrency(n: number): string {
   return `$ ${n.toFixed(2)}`
@@ -24,6 +26,7 @@ export default function CartPage() {
   const decrementQuantity = useCartStore((s) => s.decrementQuantity)
   const removeItem = useCartStore((s) => s.removeItem)
   const clearCart = useCartStore((s) => s.clearCart)
+  const { confirm } = useConfirm()
 
   // Selectors re-derive on every render — cheap (sum over items)
   const subtotal = useCartStore((s) => s.subtotal)()
@@ -38,15 +41,18 @@ export default function CartPage() {
       <h1 className="mb-6 text-2xl font-bold text-foreground">Mi Carrito</h1>
 
       {isEmpty && (
-        <div className="rounded-lg border border-border bg-card p-8 text-center">
-          <p className="mb-4 text-muted-foreground">Tu carrito está vacío.</p>
-          <Link
-            to="/catalog"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-          >
-            Ir al catálogo
-          </Link>
-        </div>
+        <EmptyState
+          title="Tu carrito está vacío"
+          description="Agrega productos para continuar."
+          action={
+            <Link
+              to="/catalog"
+              className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+              Ver catálogo
+            </Link>
+          }
+        />
       )}
 
       {!isEmpty && (
@@ -103,7 +109,14 @@ export default function CartPage() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => removeItem(key)}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          variant: 'destructive',
+                          title: '¿Eliminar producto?',
+                          description: `¿Quitar "${item.nombre}" del carrito?`,
+                        })
+                        if (ok) removeItem(key)
+                      }}
                       className="text-xs text-red-600 hover:underline"
                     >
                       Quitar
@@ -146,7 +159,14 @@ export default function CartPage() {
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-between">
             <button
               type="button"
-              onClick={clearCart}
+              onClick={async () => {
+                const ok = await confirm({
+                  variant: 'destructive',
+                  title: '¿Vaciar carrito?',
+                  description: '¿Estás seguro de vaciar el carrito?',
+                })
+                if (ok) clearCart()
+              }}
               className="rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
             >
               Vaciar carrito
@@ -154,7 +174,7 @@ export default function CartPage() {
             <button
               type="button"
               onClick={() => navigate('/checkout')}
-              className="rounded-md bg-orange-500 px-6 py-2 text-sm font-semibold text-white hover:bg-orange-600 active:bg-orange-700"
+              className="rounded-md bg-orange-500 px-6 py-3 text-sm font-semibold text-white hover:bg-orange-600 active:bg-orange-700"
             >
               Continuar al checkout
             </button>

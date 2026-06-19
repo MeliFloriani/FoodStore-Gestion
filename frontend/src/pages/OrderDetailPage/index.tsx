@@ -13,17 +13,22 @@
  * - Skeleton loaders during load
  */
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useOrderDetail } from '@/features/orders'
 import { OrderHistoryTimeline } from '@/features/orders'
 import {
   EstadoActionBar,
   useCancelarPedidoCliente,
+  CancelReasonModal,
 } from '@/features/pedido-state-actions'
+
+import { useToast } from '@/shared/ui/toast'
+import { useConfirm } from '@/shared/ui/confirm-dialog'
 import { usePaymentStatus } from '@/features/checkout-payment'
 import { usePaymentStore } from '@/shared/store/paymentStore'
 import type { PedidoDetail } from '@/entities/pedido/model/types'
+import { SkeletonRect, SkeletonLine } from '@/shared/ui/skeleton'
 
 /** Extract HTTP status from any error object (works without axios.isAxiosError) */
 function getHttpStatus(error: unknown): number | null {
@@ -74,17 +79,17 @@ function formatDate(iso: string): string {
 
 function SkeletonDetail() {
   return (
-    <div className="animate-pulse space-y-4" aria-busy="true" aria-label="Cargando detalle del pedido">
-      <div className="h-6 w-48 rounded bg-muted" />
+    <div className="space-y-4" aria-busy="true" aria-label="Cargando detalle del pedido">
+      <SkeletonRect height="h-6" className="w-48" />
       <div className="rounded-lg border border-border bg-card p-4 space-y-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="flex justify-between">
-            <div className="h-4 w-40 rounded bg-muted" />
-            <div className="h-4 w-16 rounded bg-muted" />
+            <SkeletonLine width="w-40" />
+            <SkeletonLine width="w-16" />
           </div>
         ))}
       </div>
-      <div className="h-32 rounded-lg border border-border bg-card" />
+      <SkeletonRect height="h-32" className="w-full" />
     </div>
   )
 }
@@ -106,15 +111,37 @@ function PaymentStatusPolling({ pedidoId }: { pedidoId: string }) {
 function OrderDetailContent({ pedido, pedidoId }: OrderDetailContentProps) {
   const paymentStatus = usePaymentStore((s) => s.status)
   const { mutateAsync: cancel, isPending: isCancelPending } = useCancelarPedidoCliente()
+  const { toast } = useToast()
+  const { confirm } = useConfirm()
+  const [cancelModal, setCancelModal] = useState<{ pedidoId: string; open: boolean } | null>(null)
 
   // CLIENT context: only CANCELADO is ever offered (showAdminActions defaults to false).
   // Staff transitions (EN_PREP, EN_CAMINO, ENTREGADO, CONFIRMADO) are not shown here.
   const handleTransition = async (nuevoEstado: string) => {
     if (nuevoEstado === 'CANCELADO') {
-      const motivo = window.prompt('Motivo de cancelación (requerido):')
-      if (!motivo?.trim()) return
-      await cancel({ pedidoId, motivo: motivo.trim() })
+      const ok = await confirm({
+        variant: 'destructive',
+        title: '¿Cancelar pedido?',
+        description: 'Esta acción no se puede deshacer.',
+        confirmLabel: 'Sí, cancelar',
+      })
+      if (!ok) return
+      setCancelModal({ pedidoId, open: true })
+      return
     }
+  }
+
+  const handleCancelConfirm = (motivo: string) => {
+    if (!cancelModal) return
+    const pid = cancelModal.pedidoId
+    setCancelModal(null)
+    cancel({ pedidoId: pid, motivo })
+      .then(() => {
+        toast({ variant: 'success', title: 'Pedido cancelado exitosamente.' })
+      })
+      .catch(() => {
+        toast({ variant: 'error', title: 'Error al cancelar el pedido.' })
+      })
   }
 
   const isLoading = isCancelPending
@@ -243,6 +270,15 @@ function OrderDetailContent({ pedido, pedidoId }: OrderDetailContentProps) {
           ← Volver a mis pedidos
         </Link>
       </div>
+
+      {/* Cancel reason modal */}
+      <CancelReasonModal
+        isOpen={cancelModal?.open ?? false}
+        onClose={() => setCancelModal(null)}
+        onConfirm={handleCancelConfirm}
+        isLoading={isLoading}
+        title="Cancelar pedido"
+      />
     </div>
   )
 }

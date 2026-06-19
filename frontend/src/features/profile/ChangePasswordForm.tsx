@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from '@tanstack/react-form'
 import { useAuthStore } from '@/entities/auth/model/store'
 import { useChangePassword } from './hooks/useChangePassword'
+import { useToast } from '@/shared/ui/toast'
 import type { AxiosError } from 'axios'
 
 type ApiError = {
@@ -32,6 +33,7 @@ export function ChangePasswordForm() {
   const [currentPasswordError, setCurrentPasswordError] = useState<string | null>(null)
   const [rateLimitError, setRateLimitError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const form = useForm({
     defaultValues: {
@@ -53,7 +55,7 @@ export function ChangePasswordForm() {
         {
           onSuccess: () => {
             setSuccessMessage('Contraseña actualizada. Cerrando sesión...')
-            // Logout and redirect to login
+            toast({ variant: 'success', title: 'Contraseña actualizada' })
             logout()
             navigate('/login')
           },
@@ -64,8 +66,14 @@ export function ChangePasswordForm() {
 
             if (status === 409 || code === 'CURRENT_PASSWORD_MISMATCH') {
               setCurrentPasswordError('Contraseña actual incorrecta. Verifica e intenta nuevamente.')
+              toast({ variant: 'error', title: 'Contraseña incorrecta', description: 'La contraseña actual no coincide.' })
             } else if (status === 429) {
               setRateLimitError('Demasiados intentos. Espera 15 minutos.')
+              toast({ variant: 'warning', title: 'Demasiados intentos', description: 'Esperá 15 minutos antes de intentar de nuevo.' })
+            }
+
+            if (status !== 409 && status !== 429) {
+              toast({ variant: 'error', title: 'Error al cambiar la contraseña' })
             }
           },
         }
@@ -101,7 +109,7 @@ export function ChangePasswordForm() {
                 setCurrentPasswordError(null) // clear server error on change
               }}
               onBlur={field.handleBlur}
-              className="w-full px-3 py-2 border rounded"
+              className="w-full px-3 py-2 border rounded min-h-11"
             />
             {currentPasswordError && (
               <p className="text-red-500 text-sm mt-1" role="alert">
@@ -134,7 +142,7 @@ export function ChangePasswordForm() {
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
-              className="w-full px-3 py-2 border rounded"
+              className="w-full px-3 py-2 border rounded min-h-11"
             />
             {field.state.meta.errors.length > 0 && (
               <p className="text-red-500 text-sm mt-1" role="alert">
@@ -171,7 +179,7 @@ export function ChangePasswordForm() {
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
-              className="w-full px-3 py-2 border rounded"
+              className="w-full px-3 py-2 border rounded min-h-11"
             />
             {field.state.meta.errors.length > 0 && (
               <p className="text-red-500 text-sm mt-1" role="alert">
@@ -207,7 +215,7 @@ export function ChangePasswordForm() {
       <button
         type="submit"
         disabled={mutation.isPending}
-        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-11"
         aria-label="Cambiar contraseña"
       >
         {mutation.isPending ? 'Cambiando...' : 'Cambiar contraseña'}

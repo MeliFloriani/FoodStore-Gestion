@@ -23,9 +23,14 @@
 
 import { lazy, Suspense, useState, useCallback } from 'react'
 import { useUsersQuery } from '@/features/admin-users/api/useUsersQuery'
+import { useDeactivateUserMutation } from '@/features/admin-users/api/useDeactivateUserMutation'
 import { UsersTable } from '@/features/admin-users/ui/UsersTable'
 import { UserSearchBar } from '@/features/admin-users/ui/UserSearchBar'
 import { UserFilters } from '@/features/admin-users/ui/UserFilters'
+import { SkeletonList } from '@/shared/ui/skeleton'
+import { EmptyState } from '@/shared/ui/empty-state'
+import { useToast } from '@/shared/ui/toast'
+import { useConfirm } from '@/shared/ui/confirm-dialog'
 import type { UsuarioAdminRead } from '@/features/admin-users/types'
 
 // Lazy imports for modals (code splitting)
@@ -37,13 +42,8 @@ const EditUserRolesModal = lazy(() =>
     default: m.EditUserRolesModal,
   })),
 )
-const DeactivateUserModal = lazy(() =>
-  import('@/features/admin-users/ui/DeactivateUserModal').then((m) => ({
-    default: m.DeactivateUserModal,
-  })),
-)
 
-type ModalType = 'edit' | 'roles' | 'deactivate' | null
+type ModalType = 'edit' | 'roles' | null
 
 function ModalSpinner() {
   return (
@@ -62,6 +62,10 @@ export default function AdminUsersPage() {
   const [selectedUser, setSelectedUser] = useState<UsuarioAdminRead | null>(null)
   const [openModal, setOpenModal] = useState<ModalType>(null)
 
+  const toast = useToast()
+  const confirm = useConfirm()
+  const deactivateMutation = useDeactivateUserMutation()
+
   const { data, isLoading } = useUsersQuery({ page, size, q, rol, activo })
   const items = data?.items ?? []
   const total = data?.total ?? 0
@@ -75,11 +79,6 @@ export default function AdminUsersPage() {
   function openRolesModal(user: UsuarioAdminRead) {
     setSelectedUser(user)
     setOpenModal('roles')
-  }
-
-  function openDeactivateModal(user: UsuarioAdminRead) {
-    setSelectedUser(user)
-    setOpenModal('deactivate')
   }
 
   function closeModal() {
@@ -102,8 +101,33 @@ export default function AdminUsersPage() {
     setPage(1)
   }
 
-  function handleMutationSuccess() {
-    // Modal closes itself via onSuccess; query cache is already invalidated
+  function handleEditSuccess() {
+    toast.toast({ variant: 'success', title: 'Usuario actualizado correctamente.' })
+    closeModal()
+  }
+
+  function handleRolesSuccess() {
+    toast.toast({ variant: 'success', title: 'Roles actualizados correctamente.' })
+    closeModal()
+  }
+
+  async function handleDeactivate(user: UsuarioAdminRead) {
+    const ok = await confirm.confirm({
+      variant: 'destructive',
+      title: '¿Desactivar usuario?',
+    })
+    if (!ok) return
+    deactivateMutation.mutate(
+      { id: user.id, data: { activo: false } },
+      {
+        onSuccess: () => {
+          toast.toast({ variant: 'success', title: 'Usuario desactivado correctamente.' })
+        },
+        onError: () => {
+          toast.toast({ variant: 'error', title: 'Error al desactivar usuario.' })
+        },
+      },
+    )
   }
 
   return (
@@ -128,20 +152,22 @@ export default function AdminUsersPage() {
         />
       </div>
 
-      {/* Table */}
-      <UsersTable
-        users={items}
-        isLoading={isLoading}
-        onEditData={openEditModal}
-        onEditRoles={openRolesModal}
-        onDeactivate={openDeactivateModal}
-      />
-
-      {/* Empty state (table handles it internally, but page-level fallback) */}
-      {!isLoading && items.length === 0 && (
-        <p className="text-center text-sm text-muted-foreground">
-          No se encontraron usuarios con los filtros actuales.
-        </p>
+      {/* Table / Skeleton / Empty state */}
+      {isLoading ? (
+        <SkeletonList rows={6} />
+      ) : items.length === 0 ? (
+        <EmptyState
+          title="Sin usuarios"
+          description="No hay usuarios registrados."
+        />
+      ) : (
+        <UsersTable
+          users={items}
+          isLoading={false}
+          onEditData={openEditModal}
+          onEditRoles={openRolesModal}
+          onDeactivate={handleDeactivate}
+        />
       )}
 
       {/* Pagination */}
@@ -179,7 +205,7 @@ export default function AdminUsersPage() {
           <EditUserModal
             user={selectedUser}
             onClose={closeModal}
-            onSuccess={handleMutationSuccess}
+            onSuccess={handleEditSuccess}
           />
         </Suspense>
       )}
@@ -188,19 +214,11 @@ export default function AdminUsersPage() {
           <EditUserRolesModal
             user={selectedUser}
             onClose={closeModal}
-            onSuccess={handleMutationSuccess}
+            onSuccess={handleRolesSuccess}
           />
         </Suspense>
       )}
-      {openModal === 'deactivate' && selectedUser && (
-        <Suspense fallback={<ModalSpinner />}>
-          <DeactivateUserModal
-            user={selectedUser}
-            onClose={closeModal}
-            onSuccess={handleMutationSuccess}
-          />
-        </Suspense>
-      )}
+      {/* Note: Deactivation uses useConfirm directly — no lazy modal needed */}
     </div>
   )
 }

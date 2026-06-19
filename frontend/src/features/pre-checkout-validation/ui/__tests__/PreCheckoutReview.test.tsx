@@ -15,6 +15,11 @@ import { MemoryRouter } from 'react-router-dom'
 import { PreCheckoutReview } from '../PreCheckoutReview'
 import type { ValidarPreCheckoutResponse } from '../../model/types'
 
+// Mock toast to avoid context requirement
+vi.mock('@/shared/ui/toast', () => ({
+  useToast: () => ({ toast: vi.fn() }),
+}))
+
 // ---------------------------------------------------------------------------
 // Mock the hook — tests control the hook's return value
 // ---------------------------------------------------------------------------

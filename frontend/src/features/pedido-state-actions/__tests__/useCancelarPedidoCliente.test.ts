@@ -61,7 +61,7 @@ describe('useCancelarPedidoCliente', () => {
       })
     })
 
-    expect(mockDelete).toHaveBeenCalledWith('/pedidos/order-uuid', {
+    expect(mockDelete).toHaveBeenCalledWith('/api/v1/pedidos/order-uuid', {
       data: { nuevo_estado: 'CANCELADO', motivo: 'ya no lo necesito' },
     })
   })

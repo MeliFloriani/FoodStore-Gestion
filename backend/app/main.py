@@ -66,9 +66,18 @@ app = FastAPI(
 )
 
 # --- Middlewares (registration order = execution order reversed) ---
+# The LAST registered middleware is the OUTERMOST.
+# CORSMiddleware must be outermost so ALL responses (including 429 from rate limiter)
+# carry CORS headers. Otherwise the browser blocks error responses.
 
-# CORS — registered before RequestIDMiddleware so preflight also receives CORS headers.
-# expose_headers=["X-Request-ID"] allows browsers to read the tracing header.
+# 1. Rate limiting (innermost — runs last in the chain)
+app.state.limiter = get_limiter()
+app.add_middleware(SlowAPIMiddleware)
+
+# 2. Request ID
+app.add_middleware(RequestIDMiddleware)
+
+# 3. CORS (outermost — runs first, wraps every response with CORS headers)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -77,13 +86,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-ID"],
 )
-
-# Request ID — assigns / propagates X-Request-ID for tracing
-app.add_middleware(RequestIDMiddleware)
-
-# Rate limiting
-app.state.limiter = get_limiter()
-app.add_middleware(SlowAPIMiddleware)
 
 # --- Error handlers ---
 register_error_handlers(app)

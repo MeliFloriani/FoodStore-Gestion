@@ -28,6 +28,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { usePaymentStore } from '@/shared/store/paymentStore'
 import { PaymentStatusScreen } from '@/features/checkout-payment'
 import { reconcilePayment } from '@/entities/pago'
+import { useToast } from '@/shared/ui/toast'
 
 export default function CheckoutReturnPage() {
   const [searchParams] = useSearchParams()
@@ -40,8 +41,11 @@ export default function CheckoutReturnPage() {
   const setStatus = usePaymentStore((state) => state.setStatus)
   const resetCheckout = usePaymentStore((state) => state.resetCheckout)
 
+  const { toast } = useToast()
+
   // Guard so reconcile fires at most once per mount (StrictMode double-invoke safe)
   const reconcileFiredRef = useRef(false)
+  const toastFiredRef = useRef(false)
 
   useEffect(() => {
     if (!pedidoId) return
@@ -55,6 +59,18 @@ export default function CheckoutReturnPage() {
       setStatus('pending')
     } else if (status === 'failure') {
       setStatus('rejected')
+    }
+
+    // Fire toast once per mount (StrictMode double-invoke safe)
+    if (!toastFiredRef.current && status) {
+      toastFiredRef.current = true
+      if (status === 'success') {
+        toast({ variant: 'success', title: '¡Pago aprobado!', description: 'Tu pedido está siendo procesado.' })
+      } else if (status === 'pending') {
+        toast({ variant: 'info', title: 'Pago pendiente', description: 'Estamos esperando la confirmación de MercadoPago.' })
+      } else if (status === 'failure') {
+        toast({ variant: 'error', title: 'Pago rechazado', description: 'Podés reintentar desde la página del pedido.' })
+      }
     }
 
     // Fire reconcile ONCE if we have a payment_id and status is not failure.

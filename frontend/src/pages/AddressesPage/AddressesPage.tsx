@@ -30,24 +30,10 @@ import {
   useDeleteAddress,
 } from '@/entities/direccion-entrega'
 import type { DireccionEntrega, DireccionEntregaCreateDto, DireccionEntregaUpdateDto } from '@/entities/direccion-entrega'
-
-// ---------------------------------------------------------------------------
-// AddressSkeleton
-// ---------------------------------------------------------------------------
-
-function AddressSkeleton() {
-  return (
-    <div role="status" aria-label="Cargando direcciones" className="space-y-4 animate-pulse">
-      {[1, 2].map((i) => (
-        <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-3">
-          <div className="h-4 bg-gray-200 rounded w-1/3"></div>
-          <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-        </div>
-      ))}
-    </div>
-  )
-}
+import { SkeletonList } from '@/shared/ui/skeleton'
+import { EmptyState } from '@/shared/ui/empty-state'
+import { useConfirm } from '@/shared/ui/confirm-dialog'
+import { useToast } from '@/shared/ui/toast'
 
 // ---------------------------------------------------------------------------
 // AddressFormModal
@@ -61,6 +47,7 @@ type AddressFormModalProps = {
 function AddressFormModal({ initialData, onClose }: AddressFormModalProps) {
   const createMutation = useCreateAddress()
   const updateMutation = useUpdateAddress()
+  const { toast } = useToast()
   const isEditing = !!initialData
 
   const form = useForm({
@@ -87,10 +74,26 @@ function AddressFormModal({ initialData, onClose }: AddressFormModalProps) {
       if (isEditing && initialData) {
         updateMutation.mutate(
           { id: initialData.id, data: cleaned as DireccionEntregaUpdateDto },
-          { onSuccess: onClose },
+          {
+            onSuccess: () => {
+              toast({ variant: 'success', title: 'Dirección actualizada' })
+              onClose()
+            },
+            onError: () => {
+              toast({ variant: 'error', title: 'Error al actualizar', description: 'No se pudo guardar la dirección.' })
+            },
+          },
         )
       } else {
-        createMutation.mutate(cleaned as DireccionEntregaCreateDto, { onSuccess: onClose })
+        createMutation.mutate(cleaned as DireccionEntregaCreateDto, {
+          onSuccess: () => {
+            toast({ variant: 'success', title: 'Dirección agregada' })
+            onClose()
+          },
+          onError: () => {
+            toast({ variant: 'error', title: 'Error al crear', description: 'No se pudo agregar la dirección.' })
+          },
+        })
       }
     },
   })
@@ -340,51 +343,6 @@ function AddressFormModal({ initialData, onClose }: AddressFormModalProps) {
 }
 
 // ---------------------------------------------------------------------------
-// DeleteConfirmDialog
-// ---------------------------------------------------------------------------
-
-type DeleteConfirmDialogProps = {
-  onConfirm: () => void
-  onCancel: () => void
-  isLoading: boolean
-}
-
-function DeleteConfirmDialog({ onConfirm, onCancel, isLoading }: DeleteConfirmDialogProps) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Confirmar eliminación"
-    >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
-        <h3 className="text-base font-semibold text-gray-900 mb-2">Eliminar dirección</h3>
-        <p className="text-sm text-gray-600 mb-6">
-          ¿Querés eliminar esta dirección? Esta acción no se puede deshacer.
-        </p>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isLoading}
-            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {isLoading ? 'Eliminando…' : 'Eliminar'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // AddressCard
 // ---------------------------------------------------------------------------
 
@@ -495,28 +453,40 @@ export default function AddressesPage() {
   const { data: addresses, isLoading, isError } = useAddresses()
   const setMainMutation = useSetMainAddress()
   const deleteMutation = useDeleteAddress()
+  const { confirm } = useConfirm()
+  const { toast } = useToast()
 
   const [formModal, setFormModal] = useState<{
     open: boolean
     editAddress: DireccionEntrega | null
   }>({ open: false, editAddress: null })
 
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
-
   const openCreateForm = () => setFormModal({ open: true, editAddress: null })
   const openEditForm = (address: DireccionEntrega) =>
     setFormModal({ open: true, editAddress: address })
   const closeForm = () => setFormModal({ open: false, editAddress: null })
 
-  const handleSetMain = (id: string) => setMainMutation.mutate(id)
+  const handleSetMain = (id: string) =>
+    setMainMutation.mutate(id, {
+      onSuccess: () => toast({ variant: 'success', title: 'Dirección principal actualizada' }),
+      onError: () => toast({ variant: 'error', title: 'Error al actualizar dirección principal' }),
+    })
 
-  const handleDeleteRequest = (id: string) => setDeleteConfirm(id)
-  const handleDeleteConfirm = () => {
-    if (deleteConfirm) {
-      deleteMutation.mutate(deleteConfirm, { onSuccess: () => setDeleteConfirm(null) })
+  const handleDeleteRequest = async (id: string) => {
+    const ok = await confirm({
+      title: 'Eliminar dirección',
+      description: '¿Querés eliminar esta dirección? Esta acción no se puede deshacer.',
+      variant: 'destructive',
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
+    })
+    if (ok) {
+      deleteMutation.mutate(id, {
+        onSuccess: () => toast({ variant: 'success', title: 'Dirección eliminada' }),
+        onError: () => toast({ variant: 'error', title: 'Error al eliminar', description: 'No se pudo eliminar la dirección.' }),
+      })
     }
   }
-  const handleDeleteCancel = () => setDeleteConfirm(null)
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
@@ -534,7 +504,11 @@ export default function AddressesPage() {
       </div>
 
       {/* Loading state */}
-      {isLoading && <AddressSkeleton />}
+      {isLoading && (
+        <div role="status" aria-label="Cargando direcciones">
+          <SkeletonList rows={3} />
+        </div>
+      )}
 
       {/* Error state */}
       {isError && (
@@ -547,42 +521,19 @@ export default function AddressesPage() {
 
       {/* Empty state */}
       {!isLoading && !isError && addresses && addresses.length === 0 && (
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
-          <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg
-              className="w-6 h-6 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+        <EmptyState
+          title="Sin direcciones guardadas"
+          description="Agrega una dirección para el envío."
+          action={
+            <button
+              type="button"
+              onClick={openCreateForm}
+              className="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
-          </div>
-          <p className="text-gray-600 text-sm mb-1 font-medium">
-            No tenés direcciones guardadas.
-          </p>
-          <p className="text-gray-500 text-sm mb-5">
-            Podés retirar tu pedido en nuestro local o agregar una dirección.
-          </p>
-          <button
-            type="button"
-            onClick={openCreateForm}
-            className="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Agregar dirección
-          </button>
-        </div>
+              Agregar dirección
+            </button>
+          }
+        />
       )}
 
       {/* Address list */}
@@ -606,14 +557,6 @@ export default function AddressesPage() {
         <AddressFormModal initialData={formModal.editAddress} onClose={closeForm} />
       )}
 
-      {/* Delete confirm dialog */}
-      {deleteConfirm !== null && (
-        <DeleteConfirmDialog
-          onConfirm={handleDeleteConfirm}
-          onCancel={handleDeleteCancel}
-          isLoading={deleteMutation.isPending}
-        />
-      )}
     </div>
   )
 }

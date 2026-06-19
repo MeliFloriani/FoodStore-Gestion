@@ -84,7 +84,7 @@ describe('useValidatePreCheckout', () => {
       await result.current.mutateAsync()
     })
 
-    expect(mockPost).toHaveBeenCalledWith('/pedidos/validar', {
+    expect(mockPost).toHaveBeenCalledWith('/api/v1/pedidos/validar', {
       items: [
         expect.objectContaining({
           producto_id: 'prod-uuid-1',

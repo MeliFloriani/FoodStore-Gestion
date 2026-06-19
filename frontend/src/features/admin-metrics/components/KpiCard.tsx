@@ -10,6 +10,8 @@
  *   loading  — show skeleton when true
  */
 
+import { SkeletonRect } from '@/shared/ui/skeleton'
+
 interface KpiCardProps {
   label: string
   value: string | number
@@ -24,12 +26,7 @@ export function KpiCard({ label, value, subtitle, loading = false }: KpiCardProp
         {label}
       </p>
       {loading ? (
-        <div className="mt-2 space-y-2">
-          <div className="h-8 w-3/4 animate-pulse rounded-md bg-muted" />
-          {subtitle !== undefined && (
-            <div className="h-3 w-1/2 animate-pulse rounded-md bg-muted" />
-          )}
-        </div>
+        <SkeletonRect height="h-20" className="mt-2" />
       ) : (
         <>
           <p className="mt-2 text-3xl font-bold tracking-tight text-foreground">{value}</p>

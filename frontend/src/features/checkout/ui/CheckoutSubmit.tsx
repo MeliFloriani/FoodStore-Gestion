@@ -17,8 +17,10 @@
  *   If not, shows inline confirmation message.
  */
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useCreateOrder } from '../hooks/useCreateOrder'
+import { useToast } from '@/shared/ui/toast'
+import { SkeletonRect, SkeletonLine } from '@/shared/ui/skeleton'
 import type { PedidoRead } from '../model/types'
 
 interface CheckoutSubmitProps {
@@ -66,6 +68,7 @@ export function CheckoutSubmit({
   onSuccess,
 }: CheckoutSubmitProps) {
   const { mutateAsync, isPending, isError, isSuccess, data, error } = useCreateOrder()
+  const { toast } = useToast()
 
   const handleConfirm = async () => {
     try {
@@ -84,6 +87,26 @@ export function CheckoutSubmit({
   }
 
   const errorMessage = getErrorMessage(error)
+
+  // Toast on error
+  useEffect(() => {
+    if (isError && error) {
+      toast({ variant: 'error', title: getErrorMessage(error) || 'Error al procesar el pedido' })
+    }
+  }, [isError, error, toast])
+
+  // Skeleton loading overlay
+  if (isPending) {
+    return (
+      <div className="flex flex-col gap-4 rounded-lg bg-card p-6" aria-busy="true">
+        <SkeletonLine width="w-1/3" />
+        <SkeletonLine width="w-1/2" />
+        <SkeletonRect height="h-20" />
+        <SkeletonRect height="h-12" />
+        <p className="text-center text-sm text-muted-foreground">Procesando pedido...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -120,34 +143,7 @@ export function CheckoutSubmit({
         ].join(' ')}
         aria-busy={isPending}
       >
-        {isPending ? (
-          <span className="flex items-center justify-center gap-2">
-            <svg
-              className="h-4 w-4 animate-spin"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
-            </svg>
-            Enviando...
-          </span>
-        ) : (
-          'Confirmar pedido'
-        )}
+        Confirmar pedido
       </button>
     </div>
   )

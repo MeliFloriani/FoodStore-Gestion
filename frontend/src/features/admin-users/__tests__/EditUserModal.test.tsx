@@ -1,18 +1,19 @@
-/**
- * Tests for EditUserModal component (Change 21).
- *
- * Covers:
- *   - Renders with user's current nombre and apellido pre-populated.
- *   - Email is shown as read-only (D-01).
- *   - Has "Guardar cambios" and "Cancelar" buttons.
- *   - Form does not submit nombre/apellido fields that are empty.
- */
-
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { EditUserModal } from '../ui/EditUserModal'
+import { http } from '@/shared/api/http'
 import type { UsuarioAdminRead } from '../types'
+
+vi.mock('@/shared/api/http', () => ({
+  http: {
+    patch: vi.fn(),
+    put: vi.fn(),
+    post: vi.fn(),
+    get: vi.fn(),
+    delete: vi.fn(),
+  },
+}))
 
 const testUser: UsuarioAdminRead = {
   id: 'user-1',
@@ -34,6 +35,10 @@ function renderWithQuery(component: React.ReactElement) {
 }
 
 describe('EditUserModal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('pre-populates nombre and apellido fields', () => {
     renderWithQuery(
       <EditUserModal user={testUser} onClose={vi.fn()} onSuccess={vi.fn()} />,
@@ -72,5 +77,71 @@ describe('EditUserModal', () => {
     )
     screen.getByRole('button', { name: /cancelar/i }).click()
     expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('submits form and calls onSuccess', async () => {
+    vi.mocked(http.put).mockResolvedValue({ data: testUser })
+    const onClose = vi.fn()
+    const onSuccess = vi.fn()
+    renderWithQuery(
+      <EditUserModal user={testUser} onClose={onClose} onSuccess={onSuccess} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /guardar cambios/i }))
+
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledOnce()
+    })
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('shows validation error when nombre is empty', async () => {
+    renderWithQuery(
+      <EditUserModal user={testUser} onClose={vi.fn()} onSuccess={vi.fn()} />,
+    )
+
+    const nombreInput = screen.getByLabelText(/nombre del usuario/i)
+    fireEvent.change(nombreInput, { target: { value: '' } })
+    fireEvent.blur(nombreInput)
+
+    expect(await screen.findByText(/el nombre es requerido/i)).toBeInTheDocument()
+  })
+
+  it('shows validation error when apellido is too long', async () => {
+    renderWithQuery(
+      <EditUserModal user={testUser} onClose={vi.fn()} onSuccess={vi.fn()} />,
+    )
+
+    const apellidoInput = screen.getByLabelText(/apellido del usuario/i)
+    fireEvent.change(apellidoInput, { target: { value: 'a'.repeat(81) } })
+    fireEvent.blur(apellidoInput)
+
+    expect(await screen.findByText(/no puede superar 80 caracteres/i)).toBeInTheDocument()
+  })
+
+  it('shows serverError on mutation error', async () => {
+    vi.mocked(http.put).mockRejectedValue(new Error('Network error'))
+    renderWithQuery(
+      <EditUserModal user={testUser} onClose={vi.fn()} onSuccess={vi.fn()} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /guardar cambios/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/error al actualizar/i)).toBeInTheDocument()
+    })
+  })
+
+  it('shows Guardando... when mutation is pending', async () => {
+    vi.mocked(http.put).mockImplementation(() => new Promise(() => {}))
+    renderWithQuery(
+      <EditUserModal user={testUser} onClose={vi.fn()} onSuccess={vi.fn()} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /guardar cambios/i }))
+
+    expect(await screen.findByText('Guardando...')).toBeInTheDocument()
+    const submitBtn = screen.getByText('Guardando...').closest('button')
+    expect(submitBtn).toBeDisabled()
   })
 })

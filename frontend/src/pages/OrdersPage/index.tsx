@@ -18,6 +18,8 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useClientOrders } from '@/features/orders'
 import type { ClientOrdersParams } from '@/entities/pedido/model/types'
+import { SkeletonList } from '@/shared/ui/skeleton'
+import { EmptyState } from '@/shared/ui/empty-state'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -76,24 +78,7 @@ function shortId(id: string): string {
   return `#${id.slice(-8).toUpperCase()}`
 }
 
-// ---------------------------------------------------------------------------
-// Skeleton row
-// ---------------------------------------------------------------------------
 
-function SkeletonRow() {
-  return (
-    <li className="animate-pulse rounded-lg border border-border bg-card p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="h-3 w-20 rounded bg-muted" />
-        <div className="h-5 w-20 rounded-full bg-muted" />
-      </div>
-      <div className="mt-3 space-y-2">
-        <div className="h-3 w-48 rounded bg-muted" />
-        <div className="h-3 w-32 rounded bg-muted" />
-      </div>
-    </li>
-  )
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -147,11 +132,9 @@ export default function OrdersPage() {
 
       {/* Loading */}
       {isLoading && (
-        <ul className="flex flex-col gap-3" aria-busy="true" aria-label="Cargando pedidos">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <SkeletonRow key={i} />
-          ))}
-        </ul>
+        <div aria-busy="true" aria-label="Cargando pedidos">
+          <SkeletonList rows={5} />
+        </div>
       )}
 
       {/* Error */}
@@ -174,17 +157,11 @@ export default function OrdersPage() {
 
       {/* Empty state */}
       {!isLoading && !isError && items.length === 0 && (
-        <div className="rounded-lg border border-border bg-card p-8 text-center">
-          <p className="mb-4 text-muted-foreground">
-            Todavía no realizaste ningún pedido.
-          </p>
-          <Link
-            to="/catalog"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-          >
-            Ir al catálogo
-          </Link>
-        </div>
+        <EmptyState
+          title="Sin pedidos"
+          description="Aún no realizaste ningún pedido."
+          action={<Link to="/catalog" className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Ver catálogo</Link>}
+        />
       )}
 
       {/* Order list */}

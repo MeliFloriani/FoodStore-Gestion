@@ -24,6 +24,12 @@ vi.mock('@/shared/api/http', () => ({
   },
 }))
 
+// Mock toast to avoid ToastProvider context requirement
+const mockToast = vi.fn()
+vi.mock('@/shared/ui/toast', () => ({
+  useToast: () => ({ toast: mockToast }),
+}))
+
 // Mock react-router-dom navigate
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', async (importOriginal) => {

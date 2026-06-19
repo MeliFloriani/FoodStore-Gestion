@@ -13,15 +13,20 @@
  * - "Volver al panel" → /pedidos-panel
  */
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useOrderDetail } from '@/features/orders'
 import { OrderHistoryTimeline } from '@/features/orders'
 import {
   EstadoActionBar,
   useTransitionEstado,
+  CancelReasonModal,
 } from '@/features/pedido-state-actions'
+
+import { useToast } from '@/shared/ui/toast'
+import { useConfirm } from '@/shared/ui/confirm-dialog'
 import type { PedidoDetail } from '@/entities/pedido/model/types'
+import { SkeletonRect, SkeletonLine } from '@/shared/ui/skeleton'
 
 /** Extract HTTP status from any error object (works without axios.isAxiosError) */
 function getHttpStatus(error: unknown): number | null {
@@ -73,13 +78,13 @@ function formatDate(iso: string): string {
 function SkeletonDetail() {
   return (
     <div className="animate-pulse space-y-4" aria-busy="true" aria-label="Cargando detalle del pedido">
-      <div className="h-6 w-56 rounded bg-muted" />
+      <SkeletonRect height="h-6" className="w-56" />
       <div className="rounded-lg border border-border bg-card p-4 space-y-2">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-4 rounded bg-muted" />
+          <SkeletonLine key={i} width="w-full" />
         ))}
       </div>
-      <div className="h-40 rounded-lg border border-border bg-card" />
+      <SkeletonRect height="h-40" className="w-full" />
     </div>
   )
 }
@@ -95,15 +100,41 @@ interface PanelDetailContentProps {
 
 function PanelDetailContent({ pedido, pedidoId }: PanelDetailContentProps) {
   const { mutateAsync: transition, isPending } = useTransitionEstado()
+  const { toast } = useToast()
+  const { confirm } = useConfirm()
+  const [cancelModal, setCancelModal] = useState<{ pedidoId: string; open: boolean } | null>(null)
 
   const handleTransition = async (nuevoEstado: string) => {
-    let motivo: string | undefined
     if (nuevoEstado === 'CANCELADO') {
-      const input = window.prompt('Motivo de cancelación (requerido):')
-      if (!input?.trim()) return
-      motivo = input.trim()
+      const ok = await confirm({
+        variant: 'destructive',
+        title: '¿Cancelar pedido?',
+        description: 'Esta acción no se puede deshacer.',
+        confirmLabel: 'Sí, cancelar',
+      })
+      if (!ok) return
+      setCancelModal({ pedidoId, open: true })
+      return
     }
-    await transition({ pedidoId, request: { nuevo_estado: nuevoEstado, motivo } })
+    try {
+      await transition({ pedidoId, request: { nuevo_estado: nuevoEstado, motivo: undefined } })
+      toast({ variant: 'success', title: `Pedido actualizado a ${nuevoEstado}` })
+    } catch {
+      toast({ variant: 'error', title: 'Error al actualizar el pedido.' })
+    }
+  }
+
+  const handleCancelConfirm = (motivo: string) => {
+    if (!cancelModal) return
+    const pid = cancelModal.pedidoId
+    setCancelModal(null)
+    transition({ pedidoId: pid, request: { nuevo_estado: 'CANCELADO', motivo } })
+      .then(() => {
+        toast({ variant: 'success', title: 'Pedido cancelado exitosamente.' })
+      })
+      .catch(() => {
+        toast({ variant: 'error', title: 'Error al cancelar el pedido.' })
+      })
   }
 
   return (
@@ -239,6 +270,15 @@ function PanelDetailContent({ pedido, pedidoId }: PanelDetailContentProps) {
           ← Volver al panel
         </Link>
       </div>
+
+      {/* Cancel reason modal */}
+      <CancelReasonModal
+        isOpen={cancelModal?.open ?? false}
+        onClose={() => setCancelModal(null)}
+        onConfirm={handleCancelConfirm}
+        isLoading={isPending}
+        title="Cancelar pedido"
+      />
     </div>
   )
 }

@@ -12,6 +12,7 @@
 
 import { useState } from 'react'
 import { useCartStore } from '@/entities/cart'
+import { useToast } from '@/shared/ui/toast'
 import type { ProductoPublicoRead } from '@/entities/products'
 
 interface AddToCartButtonProps {
@@ -22,6 +23,7 @@ interface AddToCartButtonProps {
 
 export function AddToCartButton({ product, className }: AddToCartButtonProps) {
   const addItem = useCartStore((s) => s.addItem)
+  const { toast } = useToast()
   const [confirmed, setConfirmed] = useState(false)
 
   const disabled = !product.tiene_stock
@@ -46,6 +48,7 @@ export function AddToCartButton({ product, className }: AddToCartButtonProps) {
     )
 
     setConfirmed(true)
+    toast({ variant: 'success', title: 'Producto agregado al carrito' })
     setTimeout(() => setConfirmed(false), 1500)
   }
 

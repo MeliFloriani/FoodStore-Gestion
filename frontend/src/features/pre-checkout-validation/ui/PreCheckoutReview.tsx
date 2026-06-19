@@ -18,6 +18,7 @@
 
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useToast } from '@/shared/ui/toast'
 import { useValidatePreCheckout } from '../hooks/useValidatePreCheckout'
 import type { CambioRead, ItemValidadoRead } from '../model/types'
 
@@ -49,7 +50,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
       </p>
       <button
         onClick={onRetry}
-        className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-colors"
+        className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-colors"
       >
         Reintentar
       </button>
@@ -138,6 +139,7 @@ function CambioDescription({ cambio }: { cambio: CambioRead }) {
 
 export function PreCheckoutReview() {
   const navigate = useNavigate()
+  const { toast } = useToast()
   const { mutateAsync, isPending, isError, isSuccess, data } = useValidatePreCheckout()
 
   // D-09: Fire validation automatically on mount — no "Validar" button
@@ -153,6 +155,31 @@ export function PreCheckoutReview() {
   const handleGoToCart = () => {
     navigate('/cart')
   }
+
+  // Toast notifications for validation changes
+  useEffect(() => {
+    if (!isSuccess || !data) return
+    const { cambios } = data
+    if (cambios.length === 0) return
+
+    const precioCount = cambios.filter(c => c.tipo === 'PRECIO_CAMBIADO').length
+    const stockCount = cambios.filter(c => c.tipo === 'STOCK_INSUFICIENTE').length
+
+    if (precioCount > 0) {
+      toast({
+        variant: 'warning',
+        title: `Precio actualizado`,
+        description: `${precioCount} producto${precioCount !== 1 ? 's' : ''} cambiaron de precio.`,
+      })
+    }
+    if (stockCount > 0) {
+      toast({
+        variant: 'warning',
+        title: 'Stock insuficiente',
+        description: `${stockCount} producto${stockCount !== 1 ? 's' : ''} no tiene${stockCount === 1 ? '' : 'n'} stock suficiente.`,
+      })
+    }
+  }, [isSuccess, data, toast])
 
   // -------------------------------------------------------------------------
   // Loading state
@@ -286,7 +313,7 @@ export function PreCheckoutReview() {
       <div className="flex flex-col sm:flex-row gap-3">
         <button
           onClick={handleGoToCart}
-          className="flex-1 px-5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg transition-colors text-sm"
+          className="flex-1 px-5 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg transition-colors text-sm"
         >
           Ajustar carrito
         </button>
@@ -294,7 +321,7 @@ export function PreCheckoutReview() {
         <button
           disabled={continueButtonDisabled}
           title={continueButtonTitle}
-          className={`flex-1 px-5 py-2.5 font-semibold rounded-lg text-sm transition-colors ${
+          className={`flex-1 px-5 py-3 font-semibold rounded-lg text-sm transition-colors ${
             continueButtonDisabled
               ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
               : 'bg-amber-500 hover:bg-amber-600 text-white'

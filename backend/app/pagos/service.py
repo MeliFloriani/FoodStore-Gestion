@@ -202,11 +202,12 @@ async def start_checkout_pro(uow, current_user, data: PagoCreateRequest) -> Pago
         "failure": f"{frontend_base}/checkout/return?status=failure&pedido_id={pedido_id_str}",
     }
 
-    # Always send auto_return="approved". With MP test credentials the API
-    # accepts http+localhost back_urls; with production credentials MP will
-    # reject preferences whose back_urls aren't HTTPS — that is a config
-    # error that must surface, not be silently downgraded by the backend.
-    auto_return: str = "approved"
+    # auto_return="approved" only when back_urls are HTTPS (required by MP
+    # for production credentials). HTTP back_urls (local dev) must omit
+    # auto_return to avoid MP rejecting the preference with
+    # "invalid_auto_return".
+    _frontend_has_https = frontend_base.startswith("https://")
+    auto_return: str | None = "approved" if _frontend_has_https else None
 
     # Safe debug log — no tokens, no card data, only routing metadata.
     logger.info(
@@ -219,31 +220,54 @@ async def start_checkout_pro(uow, current_user, data: PagoCreateRequest) -> Pago
         auto_return=auto_return,
     )
 
-    # Step 8: Call MP Preferences API
-    try:
-        mp_response = mp_client.create_preference(
-            items=items,
-            external_reference=pedido_id_str,
-            notification_url=settings.MP_NOTIFICATION_URL,
-            back_urls=back_urls,
-            idempotency_key=data.idempotency_key,
-            auto_return=auto_return,
-        )
-    except MercadoPagoAPIError as exc:
-        logger.error(
-            "mp_preference_create_failed",
-            pedido_id=pedido_id_str,
-            status_code=exc.status_code,
-            detail=str(exc.detail),
-        )
-        raise HTTPException(
-            status_code=502,
-            detail={"detail": "Error al crear la preferencia de pago.", "code": "MP_PREFERENCE_ERROR"},
-        )
+    # Step 8: Call MP Preferences API (or mock for development).
+    # Mock mode only activates in development when no real MP credentials
+    # are configured. If MP_ACCESS_TOKEN is a real token (APP_USR- or TEST-),
+    # call the real MP API even in development mode.
+    _mp_token = settings.MP_ACCESS_TOKEN or ""
+    _has_real_creds = _mp_token.startswith("APP_USR-") or _mp_token.startswith("TEST-")
 
-    preference_id: str = mp_response.get("id") or ""
-    init_point: str | None = mp_response.get("init_point")
-    sandbox_init_point: str | None = mp_response.get("sandbox_init_point")
+    if settings.ENVIRONMENT == "development" and not _has_real_creds:
+        # Dev mode, no real MP credentials: return mock preference that
+        # redirects directly to the frontend return page for local testing.
+        mock_pref_id = f"mock_dev_pref_{pedido_id_str}"
+        mock_init = (
+            f"{frontend_base}/checkout/return"
+            f"?status=success&pedido_id={pedido_id_str}&payment_id=1"
+        )
+        logger.info(
+            "mp_preference_mock_dev",
+            pedido_id=pedido_id_str,
+            mock_init_point=mock_init,
+        )
+        preference_id = mock_pref_id
+        init_point = mock_init
+        sandbox_init_point = mock_init
+    else:
+        try:
+            mp_response = mp_client.create_preference(
+                items=items,
+                external_reference=pedido_id_str,
+                notification_url=settings.MP_NOTIFICATION_URL,
+                back_urls=back_urls,
+                idempotency_key=data.idempotency_key,
+                auto_return=auto_return,
+            )
+        except MercadoPagoAPIError as exc:
+            logger.error(
+                "mp_preference_create_failed",
+                pedido_id=pedido_id_str,
+                status_code=exc.status_code,
+                detail=str(exc.detail),
+            )
+            raise HTTPException(
+                status_code=502,
+                detail={"detail": "Error al crear la preferencia de pago.", "code": "MP_PREFERENCE_ERROR"},
+            )
+
+        preference_id: str = mp_response.get("id") or ""
+        init_point: str | None = mp_response.get("init_point")
+        sandbox_init_point: str | None = mp_response.get("sandbox_init_point")
 
     # Step 9: Insert Pago row
     pago = Pago(
@@ -779,47 +803,59 @@ async def reconcile_payment(
         )
 
     # Step 6: Re-query MP API (same source of truth as the webhook).
-    try:
-        mp_payment = mp_client.get_payment(payment_id)
-    except MercadoPagoAPIError as exc:
-        logger.error(
-            "reconcile.mp_requery_failed",
+    settings_for_reconcile = get_settings()
+    _mp_token = settings_for_reconcile.MP_ACCESS_TOKEN or ""
+    _has_real_creds = _mp_token.startswith("APP_USR-") or _mp_token.startswith("TEST-")
+
+    if settings_for_reconcile.ENVIRONMENT == "development" and not _has_real_creds:
+        # Dev mode, no real MP credentials: simulate approved payment.
+        real_status = "approved"
+        real_status_detail = "mock_dev_approved"
+        logger.info(
+            "reconcile.mock_dev_approved",
             pedido_id=str(pedido_id),
             payment_id=payment_id,
-            status_code=exc.status_code,
         )
-        raise HTTPException(
-            status_code=502,
-            detail={
-                "detail": "Error al consultar MercadoPago.",
-                "code": "MP_RECONCILE_ERROR",
-            },
-        )
+    else:
+        try:
+            mp_payment = mp_client.get_payment(payment_id)
+        except MercadoPagoAPIError as exc:
+            logger.error(
+                "reconcile.mp_requery_failed",
+                pedido_id=str(pedido_id),
+                payment_id=payment_id,
+                status_code=exc.status_code,
+            )
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "detail": "Error al consultar MercadoPago.",
+                    "code": "MP_RECONCILE_ERROR",
+                },
+            )
 
-    real_status: str = mp_payment.get("status", "unknown")
-    real_status_detail: str | None = mp_payment.get("status_detail")
-    mp_external_reference: str | None = mp_payment.get("external_reference")
+        real_status: str = mp_payment.get("status", "unknown")
+        real_status_detail: str | None = mp_payment.get("status_detail")
+        mp_external_reference: str | None = mp_payment.get("external_reference")
 
-    # Step 7: external_reference must match the pedido_id we received.
-    # Also cross-check the optional external_reference passed by the client
-    # so a copy/paste mistake from a different pedido is rejected.
-    if mp_external_reference != str(pedido_id) or (
-        external_reference is not None and external_reference != str(pedido_id)
-    ):
-        logger.error(
-            "reconcile.external_reference_mismatch",
-            pedido_id=str(pedido_id),
-            payment_id=payment_id,
-            mp_external_reference=mp_external_reference,
-            client_external_reference=external_reference,
-        )
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "detail": "El pago no corresponde a este pedido.",
-                "code": "EXTERNAL_REFERENCE_MISMATCH",
-            },
-        )
+        # Step 7: external_reference must match the pedido_id we received.
+        if mp_external_reference != str(pedido_id) or (
+            external_reference is not None and external_reference != str(pedido_id)
+        ):
+            logger.error(
+                "reconcile.external_reference_mismatch",
+                pedido_id=str(pedido_id),
+                payment_id=payment_id,
+                mp_external_reference=mp_external_reference,
+                client_external_reference=external_reference,
+            )
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "detail": "El pago no corresponde a este pedido.",
+                    "code": "EXTERNAL_REFERENCE_MISMATCH",
+                },
+            )
 
     # Step 8: Assign mp_payment_id if still NULL (first-time path).
     if pago.mp_payment_id is None:
